@@ -1,0 +1,192 @@
+// src/pages/PropertyFormPage.jsx
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PropertyForm } from '../components/PropertyForm';
+import { propertyService } from '../services/api';
+import { 
+  BuildingOfficeIcon,
+  ArrowLeftIcon,
+  ExclamationCircleIcon
+} from '@heroicons/react/24/outline';
+
+export function PropertyFormPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { 
+    data: property, 
+    isLoading: isLoadingProperty,
+    isError: isLoadError 
+  } = useQuery({
+    queryKey: ['property', id],
+    queryFn: () => propertyService.getById(id),
+    enabled: !!id,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data) => {
+      const formData = new FormData();
+      
+      // Agregar datos básicos
+      Object.keys(data).forEach(key => {
+        if (key !== 'images' && key !== 'amenities') {
+          formData.append(key, data[key]);
+        }
+      });
+
+      // Agregar amenities
+      formData.append('amenities', JSON.stringify(data.amenities));
+
+      // Agregar imágenes
+      if (data.images?.length > 0) {
+        data.images.forEach((image, index) => {
+          if (image.file) {
+            formData.append(`images[]`, image.file);
+            formData.append(`images_main[]`, image.is_main);
+          }
+        });
+      }
+
+      return propertyService.create(formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['properties']);
+      navigate('/properties');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data) => {
+      const formData = new FormData();
+      
+      Object.keys(data).forEach(key => {
+        if (key !== 'images' && key !== 'amenities') {
+          formData.append(key, data[key]);
+        }
+      });
+
+      formData.append('amenities', JSON.stringify(data.amenities));
+
+      if (data.images?.length > 0) {
+        data.images.forEach((image, index) => {
+          if (image.file) {
+            formData.append(`images[]`, image.file);
+            formData.append(`images_main[]`, image.is_main);
+          }
+        });
+      }
+
+      return propertyService.update(id, formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['properties']);
+      queryClient.invalidateQueries(['property', id]);
+      navigate('/properties');
+    },
+  });
+
+  const handleSubmit = async (data) => {
+    if (id) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  if (id && isLoadingProperty) {
+    return (
+      <div className="flex items-center justify-center min-h-screen -mt-16">
+        <div className="flex flex-col items-center gap-4">
+          <BuildingOfficeIcon className="w-12 h-12 text-karttem-gold animate-bounce" />
+          <p className="text-gray-600">Cargando propiedad...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadError) {
+    return (
+      <div className="min-h-screen -mt-16 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+          <div className="flex items-center justify-center">
+            <ExclamationCircleIcon className="h-12 w-12 text-red-500" />
+          </div>
+          <div className="mt-4 text-center">
+            <h3 className="text-lg font-medium text-gray-900">Error al cargar la propiedad</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              No se pudo cargar la información de la propiedad. Por favor, intente nuevamente.
+            </p>
+            <div className="mt-6">
+              <Link
+                to="/properties"
+                className="inline-flex items-center gap-x-2 rounded-xl bg-karttem-gold px-4 py-2.5 text-sm font-semibold text-black hover:bg-yellow-500 transition-colors duration-200"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+                Volver a propiedades
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="border-b border-gray-200 pb-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {id ? 'Editar Propiedad' : 'Nueva Propiedad'}
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">
+              {id ? 'Modifica los datos de la propiedad existente' : 'Ingresa los datos de la nueva propiedad'}
+            </p>
+          </div>
+          <Link
+            to="/properties"
+            className="inline-flex items-center gap-x-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-200 transition-colors duration-200"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+            Volver
+          </Link>
+        </div>
+      </div>
+
+      {/* Form Container */}
+      <div className="bg-white rounded-xl shadow-sm">
+        <div className="p-6">
+          <PropertyForm
+            onSubmit={handleSubmit}
+            initialData={property?.data}
+            isSubmitting={createMutation.isLoading || updateMutation.isLoading}
+          />
+        </div>
+      </div>
+
+      {/* Error Messages */}
+      {(createMutation.isError || updateMutation.isError) && (
+        <div className="rounded-lg bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Error al {id ? 'actualizar' : 'crear'} la propiedad
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>
+                  {createMutation.error?.message || updateMutation.error?.message || 
+                    'Hubo un error al procesar tu solicitud. Por favor, intenta nuevamente.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
