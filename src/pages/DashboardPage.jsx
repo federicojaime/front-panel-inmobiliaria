@@ -197,6 +197,6 @@ export function DashboardPage() {
           </table>
         </div>
       </div>
-    </div>
+    </div> 
   );
 }
