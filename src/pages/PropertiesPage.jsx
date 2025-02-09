@@ -9,26 +9,16 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 
-// Mapeo de tipos de propiedad en inglés a español
+// Mapeo de tipos permitidos por la BD
 const propertyTypeMap = {
-  house: "Casa",
-  apartment: "Apartamento",
-  commercial: "Local Comercial",
-  land: "Terreno",
-  duplex: "Dúplex",
-  "cabana": "Cabaña",
-  "campo": "Campo",
-  "cochera": "Cochera",
-  "complejo-turistico": "Complejo Turístico",
-  "departamento": "Departamento",
-  "departamentos-en-pozo": "Departamentos en Pozo",
-  "deposito": "Depósito",
-  "galpon": "Galpón",
-  "local-comercial": "Local Comercial",
-  "loteo": "Loteo",
-  "monoambiente": "Monoambiente",
-  "oficina": "Oficina",
-  "planta-industrial": "Planta Industrial",
+  casa: "Casa",
+  departamento: "Departamento",
+  terreno: "Terreno",
+  local_comercial: "Local Comercial",
+  oficina: "Oficina",
+  galpon: "Galpón",
+  campo: "Campo",
+  cochera: "Cochera",
 };
 
 export function PropertiesPage() {
@@ -45,20 +35,25 @@ export function PropertiesPage() {
     try {
       setIsLoading(true);
       const response = await propertyService.getAll();
-      setProperties(response.data);
+      if (response && response.data) {
+        setProperties(response.data || []);
+      } else {
+        setProperties([]);
+      }
     } catch (err) {
       console.error("Error al cargar propiedades:", err);
       setError("Error al cargar las propiedades");
+      setProperties([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredProperties = properties.filter(
+  const filteredProperties = properties?.filter(
     (property) =>
-      property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.address?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      (property?.title?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+        property?.address?.toLowerCase()?.includes(searchTerm.toLowerCase())) ?? false
+  ) ?? [];
 
   if (isLoading) {
     return (
@@ -108,7 +103,6 @@ export function PropertiesPage() {
           </div>
         </div>
 
-        {/* Table */}
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-gray-200">
@@ -165,20 +159,14 @@ export function PropertiesPage() {
                       {propertyTypeMap[property.type] || property.type}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset
-                ${property.status === "sale"
-                            ? "bg-blue-50 text-blue-700 ring-blue-600/20"
-                            : property.status === "rent"
-                              ? "bg-green-50 text-green-700 ring-green-600/20"
-                              : "bg-yellow-50 text-yellow-700 ring-yellow-600/20"
-                          }`}
-                      >
-                        {property.status === "sale" ? "En Venta" : property.status === "rent" ? "En Alquiler" : "Alquiler Temporal"}
-                      </span>
+                      {property.status === "sale"
+                        ? "En Venta"
+                        : property.status === "rent"
+                        ? "En Alquiler"
+                        : "Alquiler Temporal"}
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500">
-                      {property.price_usd && <div>USD ${property.price_usd.toLocaleString()}</div>}
+                      {property.price_usd ? `USD $${property.price_usd.toLocaleString()}` : "-"}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm text-gray-500">{property.city}</td>
                     <td className="w-[80px] px-3 py-4 text-right text-sm font-medium">
@@ -193,7 +181,6 @@ export function PropertiesPage() {
                   </tr>
                 ))
               ) : (
-                // Mensaje cuando no hay resultados en la búsqueda
                 <tr>
                   <td colSpan="6" className="py-12 text-center">
                     <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />

@@ -1,7 +1,8 @@
 // src/services/api.js
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
-const API_URL = 'http://localhost/inmobiliaria-api'; // Ajusta según tu configuración
+const API_URL = 'https://codeo.site/api-karttem';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -11,48 +12,99 @@ const api = axios.create({
 });
 
 // Interceptor para añadir el token de autenticación
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = token;
-  }
-  return config;
-});
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('inmobiliaria_token');
+    if (token) {
+      config.headers.Authorization = token;
+    }
+    // Si se envía FormData, eliminamos Content-Type para que axios lo genere correctamente
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Auth services
+// Interceptor para manejar errores de respuesta
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.log('Error response:', error.response);
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('inmobiliaria_token');
+      localStorage.removeItem('inmobiliaria_user');
+      window.dispatchEvent(new Event('auth-error'));
+      toast.error('Su sesión ha expirado. Por favor, vuelva a iniciar sesión.');
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Servicio de autenticación
 export const authService = {
   login: async (credentials) => {
-    const response = await api.post('/user/login', credentials);
-    if (response.data.ok) {
-      localStorage.setItem('token', response.data.data.jwt);
-      localStorage.setItem('user', JSON.stringify(response.data.data));
+    try {
+      console.log('Intentando login con:', credentials);
+      const response = await api.post('/user/login', credentials);
+      console.log('Respuesta login:', response.data);
+      if (response.data.ok) {
+        localStorage.setItem('inmobiliaria_token', response.data.data.jwt);
+        localStorage.setItem('inmobiliaria_user', JSON.stringify(response.data.data));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error en login:', error.response || error);
+      return {
+        ok: false,
+        msg: error.response?.data?.msg || 'Error al iniciar sesión',
+        data: null,
+      };
     }
-    return response.data;
   },
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('inmobiliaria_token');
+    localStorage.removeItem('inmobiliaria_user');
   },
 };
 
-// Properties services
+// Servicio de propiedades
 export const propertyService = {
-  getAll: () => api.get('/properties').then(res => res.data),
-  getById: (id) => api.get(`/property/${id}`).then(res => res.data),
-  create: (data) => api.post('/property', data).then(res => res.data),
-  update: (id, data) => api.put(`/property/${id}`, data).then(res => res.data),
-  delete: (id) => api.delete(`/property/${id}`).then(res => res.data),
-  uploadImages: (id, formData) => api.post(`/property/${id}/images`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }).then(res => res.data),
+  getAll: () => api.get('/properties').then((res) => res.data),
+  getById: (id) => api.get(`/property/${id}`).then((res) => res.data),
+  create: async (formData) => {
+    try {
+      const response = await api.post('/property', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error en create:', error.response?.data);
+      throw error;
+    }
+  },
+  // Usamos POST para update, igual que en create
+  update: async (id, formData) => {
+    try {
+      const response = await api.post(`/property/${id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error en update:', error.response?.data);
+      throw error;
+    }
+  },
+  delete: (id) => api.delete(`/property/${id}`).then((res) => res.data),
 };
 
-// Users services
+// Servicio de usuarios
 export const userService = {
-  getAll: () => api.get('/users').then(res => res.data),
-  getById: (id) => api.get(`/user/${id}`).then(res => res.data),
-  create: (data) => api.post('/user', data).then(res => res.data),
-  delete: (id) => api.delete(`/user/${id}`).then(res => res.data),
+  getAll: () => api.get('/users').then((res) => res.data),
+  getById: (id) => api.get(`/user/${id}`).then((res) => res.data),
+  create: (data) => api.post('/user', data).then((res) => res.data),
+  delete: (id) => api.delete(`/user/${id}`).then((res) => res.data),
 };
+
+export default api;

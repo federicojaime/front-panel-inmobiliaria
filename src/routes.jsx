@@ -14,7 +14,7 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
-export function AppRoutes() {
+function AppRoutes() {
   const { user } = useAuth();
 
   return (
@@ -105,3 +105,5 @@ export function AppRoutes() {
     </Routes>
   );
 }
+
+export default AppRoutes;

@@ -7,32 +7,22 @@ import {
   CurrencyDollarIcon,
   UserGroupIcon,
   ChevronRightIcon,
+  PencilSquareIcon
 } from "@heroicons/react/24/outline";
 import { BuildingOfficeIcon } from "@heroicons/react/24/solid";
 
-// Mapeo de tipos de propiedad en inglés a español
+// Mapeo de tipos permitidos por la BD
 const propertyTypeMap = {
-  house: "Casa",
-  apartment: "Apartamento",
-  commercial: "Local Comercial",
-  land: "Terreno",
-  duplex: "Dúplex",
-  cabana: "Cabaña",
+  casa: "Casa",
+  departamento: "Departamento",
+  terreno: "Terreno",
+  local_comercial: "Local Comercial",
+  oficina: "Oficina",
+  galpon: "Galpón",
   campo: "Campo",
   cochera: "Cochera",
-  "complejo-turistico": "Complejo Turístico",
-  departamento: "Departamento",
-  "departamentos-en-pozo": "Departamentos en Pozo",
-  deposito: "Depósito",
-  galpon: "Galpón",
-  "local-comercial": "Local Comercial",
-  loteo: "Loteo",
-  monoambiente: "Monoambiente",
-  oficina: "Oficina",
-  "planta-industrial": "Planta Industrial",
 };
 
-// Función para obtener el estado con estilos
 const getStatusBadge = (status) => {
   const styles = {
     sale: "bg-blue-50 text-blue-700 ring-blue-600/20",
@@ -142,7 +132,6 @@ export function DashboardPage() {
             Listado de las propiedades más recientes
           </p>
         </div>
-
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -175,23 +164,31 @@ export function DashboardPage() {
                       {property.title}
                     </div>
                     <div className="text-gray-500 text-xs truncate">
-                      {property.location}
+                      {property.address}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 capitalize">
                     {propertyTypeMap[property.type] || property.type}
                   </td>
-                  <td className="px-6 py-4 text-sm">{getStatusBadge(property.status)}</td>
+                  <td className="px-6 py-4 text-sm">
+                    {property.status === "sale"
+                      ? "En Venta"
+                      : property.status === "rent"
+                      ? "En Alquiler"
+                      : "Alquiler Temporal"}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {property.price_usd ? `USD $${property.price_usd.toLocaleString()}` : "-"}
+                    {property.price_usd
+                      ? `USD $${property.price_usd.toLocaleString()}`
+                      : "-"}
                   </td>
                   <td className="px-6 py-4 text-right text-sm font-medium">
                     <Link
                       to={`/properties/${property.id}/edit`}
                       className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
                     >
-                      Ver
-                      <ChevronRightIcon className="h-4 w-4" />
+                      <PencilSquareIcon className="h-4 w-4" />
+                      Editar
                     </Link>
                   </td>
                 </tr>

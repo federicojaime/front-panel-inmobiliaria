@@ -3,7 +3,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PropertyForm } from '../components/PropertyForm';
 import { propertyService } from '../services/api';
-import { 
+import { toast } from 'react-hot-toast';
+import {
   BuildingOfficeIcon,
   ArrowLeftIcon,
   ExclamationCircleIcon
@@ -14,10 +15,10 @@ export function PropertyFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { 
-    data: property, 
+  const {
+    data: property,
     isLoading: isLoadingProperty,
-    isError: isLoadError 
+    isError: isLoadError
   } = useQuery({
     queryKey: ['property', id],
     queryFn: () => propertyService.getById(id),
@@ -25,72 +26,39 @@ export function PropertyFormPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const formData = new FormData();
-      
-      // Agregar datos básicos
-      Object.keys(data).forEach(key => {
-        if (key !== 'images' && key !== 'amenities') {
-          formData.append(key, data[key]);
-        }
-      });
-
-      // Agregar amenities
-      formData.append('amenities', JSON.stringify(data.amenities));
-
-      // Agregar imágenes
-      if (data.images?.length > 0) {
-        data.images.forEach((image, index) => {
-          if (image.file) {
-            formData.append(`images[]`, image.file);
-            formData.append(`images_main[]`, image.is_main);
-          }
-        });
-      }
-
-      return propertyService.create(formData);
-    },
+    mutationFn: propertyService.create,
     onSuccess: () => {
       queryClient.invalidateQueries(['properties']);
+      toast.success('Propiedad creada exitosamente');
       navigate('/properties');
     },
+    onError: (error) => {
+      toast.error(error.response?.data?.msg || 'Error al crear la propiedad');
+    }
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data) => {
-      const formData = new FormData();
-      
-      Object.keys(data).forEach(key => {
-        if (key !== 'images' && key !== 'amenities') {
-          formData.append(key, data[key]);
-        }
-      });
-
-      formData.append('amenities', JSON.stringify(data.amenities));
-
-      if (data.images?.length > 0) {
-        data.images.forEach((image, index) => {
-          if (image.file) {
-            formData.append(`images[]`, image.file);
-            formData.append(`images_main[]`, image.is_main);
-          }
-        });
-      }
-
-      return propertyService.update(id, formData);
-    },
+    mutationFn: (data) => propertyService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['properties']);
-      queryClient.invalidateQueries(['property', id]);
+      toast.success('Propiedad actualizada exitosamente');
       navigate('/properties');
     },
+    onError: (error) => {
+      toast.error(error.response?.data?.msg || 'Error al actualizar la propiedad');
+    }
   });
 
-  const handleSubmit = async (data) => {
-    if (id) {
-      updateMutation.mutate(data);
-    } else {
-      createMutation.mutate(data);
+  const handleSubmit = async (formData) => {
+    try {
+      if (id) {
+        await updateMutation.mutateAsync(formData);
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+    } catch (error) {
+      toast.error('Error al procesar el formulario');
+      throw error;
     }
   };
 
@@ -134,7 +102,6 @@ export function PropertyFormPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="border-b border-gray-200 pb-5">
         <div className="flex items-center justify-between">
           <div>
@@ -142,7 +109,7 @@ export function PropertyFormPage() {
               {id ? 'Editar Propiedad' : 'Nueva Propiedad'}
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              {id ? 'Modifica los datos de la propiedad existente' : 'Ingresa los datos de la nueva propiedad'}
+              {id ? 'Modifica los datos de la propiedad' : 'Ingresa los datos de la nueva propiedad'}
             </p>
           </div>
           <Link
@@ -155,7 +122,6 @@ export function PropertyFormPage() {
         </div>
       </div>
 
-      {/* Form Container */}
       <div className="bg-white rounded-xl shadow-sm">
         <div className="p-6">
           <PropertyForm
@@ -165,28 +131,6 @@ export function PropertyFormPage() {
           />
         </div>
       </div>
-
-      {/* Error Messages */}
-      {(createMutation.isError || updateMutation.isError) && (
-        <div className="rounded-lg bg-red-50 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <ExclamationCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Error al {id ? 'actualizar' : 'crear'} la propiedad
-              </h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>
-                  {createMutation.error?.message || updateMutation.error?.message || 
-                    'Hubo un error al procesar tu solicitud. Por favor, intenta nuevamente.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
