@@ -21,7 +21,18 @@ export function PropertyFormPage() {
     isError: isLoadError
   } = useQuery({
     queryKey: ['property', id],
-    queryFn: () => propertyService.getById(id),
+    queryFn: async () => {
+      const response = await propertyService.getById(id);
+      // Preparar los datos para el formulario
+      if (response.data && response.data.owner) {
+        // El propietario ya viene como un objeto estructurado desde el backend
+        return {
+          ...response.data,
+          owner: response.data.owner
+        };
+      }
+      return response.data;
+    },
     enabled: !!id,
   });
 
@@ -126,7 +137,7 @@ export function PropertyFormPage() {
         <div className="p-6">
           <PropertyForm
             onSubmit={handleSubmit}
-            initialData={property?.data}
+            initialData={property}
             isSubmitting={createMutation.isLoading || updateMutation.isLoading}
           />
         </div>

@@ -1,5 +1,6 @@
 // src/pages/PropertiesPage.jsx
-import { useState, useEffect } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { propertyService } from "../services/api";
 import {
@@ -7,9 +8,14 @@ import {
   BuildingOfficeIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
+  DocumentCheckIcon,
 } from "@heroicons/react/24/outline";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import ReactDOMServer from "react-dom/server";
+import PropertyPDF from "../components/PropertyPDF"; // IMPORTACIÓN POR DEFECTO
 
-// Mapeo de tipos permitidos por la BD
+// Mapeo de tipos permitidos por la BD (ajusta según tus tipos)
 const propertyTypeMap = {
   casa: "Casa",
   departamento: "Departamento",
@@ -49,11 +55,74 @@ export function PropertiesPage() {
     }
   };
 
-  const filteredProperties = properties?.filter(
-    (property) =>
-      (property?.title?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-        property?.address?.toLowerCase()?.includes(searchTerm.toLowerCase())) ?? false
-  ) ?? [];
+  // Filtro de búsqueda
+  const filteredProperties = properties?.filter((property) => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return (
+      property?.title?.toLowerCase().includes(lowerSearch) ||
+      property?.address?.toLowerCase().includes(lowerSearch)
+    );
+  }) || [];
+
+  // Función para exportar PDF (una sola propiedad)
+  const handleExportPDF = async (property) => {
+    try {
+      // Renderizar el componente PropertyPDF como HTML estático
+      const pdfContent = ReactDOMServer.renderToStaticMarkup(
+        <PropertyPDF property={property} propertyTypeMap={propertyTypeMap} />
+      );
+
+      // Crear un contenedor temporal en el DOM y agregar el contenido HTML
+      const container = document.createElement("div");
+      container.innerHTML = pdfContent;
+      container.style.width = "700px"; // Ancho máximo definido en PropertyPDF
+      container.style.padding = "20px";
+      container.style.fontFamily = "Arial, sans-serif";
+      document.body.appendChild(container);
+
+      // Convertir el contenedor a canvas con html2canvas
+      const canvas = await html2canvas(container, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+
+      // Eliminar el contenedor temporal del DOM
+      document.body.removeChild(container);
+
+      // Crear el PDF con jsPDF (A4 en vertical, usando px)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: "a4",
+      });
+
+      // Calcular el ancho y alto de la página en pixeles
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Calcular la relación de aspecto de la imagen
+      const canvasRatio = canvas.height / canvas.width;
+      let printWidth = pageWidth;
+      let printHeight = printWidth * canvasRatio;
+
+      // Ajustar si excede la altura de la página
+      if (printHeight > pageHeight) {
+        printHeight = pageHeight;
+        printWidth = printHeight / canvasRatio;
+      }
+
+      // Centrar la imagen en la página
+      const marginX = (pageWidth - printWidth) / 2;
+      const marginY = 10; // Pequeño margen superior
+
+      // Agregar la imagen al PDF
+      pdf.addImage(imgData, "PNG", marginX, marginY, printWidth, printHeight);
+
+      // Guardar el PDF con el título de la propiedad
+      pdf.save(`${property.title || "Propiedad"}.pdf`);
+    } catch (error) {
+      console.error("Error al exportar PDF:", error);
+      alert("Ocurrió un error al exportar el PDF.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -61,6 +130,26 @@ export function PropertiesPage() {
         <div className="flex flex-col items-center gap-4">
           <BuildingOfficeIcon className="w-12 h-12 text-karttem-gold animate-bounce" />
           <p className="text-gray-600">Cargando propiedades...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen -mt-16 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+          <div className="flex items-center justify-center">
+            <BuildingOfficeIcon className="h-12 w-12 text-red-500" />
+          </div>
+          <div className="mt-4 text-center">
+            <h3 className="text-lg font-medium text-gray-900">
+              Error al cargar las propiedades
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              {error || "Intenta recargar la página."}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -85,9 +174,9 @@ export function PropertiesPage() {
         </Link>
       </div>
 
-      {/* Search and Table Container */}
+      {/* Contenedor de búsqueda y tabla */}
       <div className="bg-white rounded-xl shadow">
-        {/* Search Bar */}
+        {/* Barra de búsqueda */}
         <div className="border-b border-gray-200 px-6 py-4">
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -103,7 +192,7 @@ export function PropertiesPage() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Tabla */}
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed divide-y divide-gray-200">
             <thead>
@@ -138,15 +227,21 @@ export function PropertiesPage() {
                 >
                   Ciudad
                 </th>
-                <th scope="col" className="w-[80px] py-3.5 pl-3 pr-6 text-right">
-                  <span className="sr-only">Acciones</span>
+                <th
+                  scope="col"
+                  className="w-[120px] px-3 py-3.5 text-right text-sm font-medium"
+                >
+                  Acciones
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredProperties.length > 0 ? (
                 filteredProperties.map((property) => (
-                  <tr key={property.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <tr
+                    key={property.id}
+                    className="hover:bg-gray-50 transition-colors duration-200"
+                  >
                     <td className="w-[250px] px-3 py-4 text-sm">
                       <div className="font-medium text-gray-900 truncate max-w-[230px] overflow-hidden text-ellipsis whitespace-nowrap">
                         {property.title}
@@ -166,10 +261,16 @@ export function PropertiesPage() {
                         : "Alquiler Temporal"}
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500">
-                      {property.price_usd ? `USD $${property.price_usd.toLocaleString()}` : "-"}
+                      {property.price_usd
+                        ? `USD $${property.price_usd.toLocaleString()}`
+                        : property.price_ars
+                        ? `$${Number(property.price_ars).toLocaleString("es-AR")}`
+                        : "-"}
                     </td>
-                    <td className="w-[120px] px-3 py-4 text-sm text-gray-500">{property.city}</td>
-                    <td className="w-[80px] px-3 py-4 text-right text-sm font-medium">
+                    <td className="w-[120px] px-3 py-4 text-sm text-gray-500">
+                      {property.city}
+                    </td>
+                    <td className="w-[120px] px-3 py-4 text-right text-sm font-medium">
                       <Link
                         to={`/properties/${property.id}/edit`}
                         className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
@@ -177,6 +278,13 @@ export function PropertiesPage() {
                         <PencilSquareIcon className="h-4 w-4" />
                         Editar
                       </Link>
+                      <button
+                        onClick={() => handleExportPDF(property)}
+                        className="ml-2 inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
+                      >
+                        <DocumentCheckIcon className="h-4 w-4" />
+                        PDF
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -184,7 +292,9 @@ export function PropertiesPage() {
                 <tr>
                   <td colSpan="6" className="py-12 text-center">
                     <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-semibold text-gray-900">No hay propiedades</h3>
+                    <h3 className="mt-2 text-sm font-semibold text-gray-900">
+                      No hay propiedades
+                    </h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {searchTerm
                         ? "No se encontraron propiedades que coincidan con tu búsqueda."
