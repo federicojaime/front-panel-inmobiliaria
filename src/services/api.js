@@ -122,6 +122,15 @@ export const ownerService = {
         throw err;
       }),
 
+  getById: (id) =>
+    api
+      .get(`/owner/${id}`)
+      .then((res) => res.data)
+      .catch((err) => {
+        console.error("Error getting owner:", err);
+        throw err;
+      }),
+
   getByDocument: (documentType, documentNumber) =>
     api
       .get(`/owner/document/${documentType}/${documentNumber}`)
@@ -137,6 +146,24 @@ export const ownerService = {
       .then((res) => res.data)
       .catch((err) => {
         console.error("Error creating owner:", err);
+        throw err;
+      }),
+
+  update: (id, data) =>
+    api
+      .put(`/owner/${id}`, data)
+      .then((res) => res.data)
+      .catch((err) => {
+        console.error("Error updating owner:", err);
+        throw err;
+      }),
+
+  delete: (id) =>
+    api
+      .delete(`/owner/${id}`)
+      .then((res) => res.data)
+      .catch((err) => {
+        console.error("Error deleting owner:", err);
         throw err;
       }),
 };

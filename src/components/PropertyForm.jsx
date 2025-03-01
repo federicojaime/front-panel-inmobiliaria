@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone";
 import imageCompression from "browser-image-compression";
 import { toast } from "react-hot-toast";
 import { OwnerSection } from "./OwnerSection";
+import { LocationPicker } from "./LocationPicker";
 
 // Lista de tipos permitidos por la BD
 const PROPERTY_TYPES = [
@@ -61,6 +62,7 @@ export function PropertyForm({
     handleSubmit,
     reset,
     setValue,
+    watch, // Añadir esta línea
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -84,6 +86,8 @@ export function PropertyForm({
       city: initialData?.city || "",
       province: initialData?.province || "",
       featured: initialData?.featured || false,
+      latitude: initialData?.latitude || "",
+      longitude: initialData?.longitude || "",
       amenities: initialData?.amenities || {
         has_pool: false,
         has_heating: false,
@@ -209,7 +213,9 @@ export function PropertyForm({
       toast.error("Debe seleccionar un propietario");
       return;
     }
-
+    // En la función onSubmitForm, añadir:
+    if (data.latitude) formData.append("latitude", data.latitude);
+    if (data.longitude) formData.append("longitude", data.longitude);
     const formData = new FormData();
     formData.append("owner_id", selectedOwner.id);
     formData.append("title", data.title.trim());
@@ -581,6 +587,8 @@ export function PropertyForm({
                 />
               </div>
             </div>
+
+
             <div className="sm:col-span-3">
               <label
                 htmlFor="city"
@@ -626,6 +634,67 @@ export function PropertyForm({
             </div>
           </div>
         </div>
+        {/* Sección de geoposición */}
+        <div className="pt-8">
+          <div>
+            <h3 className="text-lg font-medium leading-6 text-gray-900">
+              Ubicación en el mapa
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Ingresa las coordenadas de la propiedad o utiliza el mapa para seleccionarlas.
+            </p>
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="latitude"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Latitud
+              </label>
+              <div className="mt-1">
+                <input
+                  type="text"
+                  {...register("latitude")}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  placeholder="Ej: -34.6118"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="longitude"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Longitud
+              </label>
+              <div className="mt-1">
+                <input
+                  type="text"
+                  {...register("longitude")}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  placeholder="Ej: -58.4173"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-6">
+              <LocationPicker
+                latitude={watch('latitude')}
+                longitude={watch('longitude')}
+                onChange={(lat, lng) => {
+                  setValue('latitude', lat);
+                  setValue('longitude', lng);
+                }}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Busca una dirección, haz clic en el mapa para seleccionar la ubicación o arrastra el marcador para ajustarla.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Sección de propietario */}
         <div className="pt-8 pb-6 border-b border-gray-200">
           <div>
@@ -721,11 +790,10 @@ export function PropertyForm({
                     <button
                       type="button"
                       onClick={() => toggleMainImage(index)}
-                      className={`absolute bottom-2 left-2 px-2 py-1 text-xs rounded ${
-                        image.is_main
-                          ? "bg-green-500 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
+                      className={`absolute bottom-2 left-2 px-2 py-1 text-xs rounded ${image.is_main
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
                     >
                       {image.is_main ? "Principal" : "Hacer principal"}
                     </button>

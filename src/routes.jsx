@@ -8,6 +8,8 @@ import { PropertiesPage } from './pages/PropertiesPage';
 import { PropertyFormPage } from './pages/PropertyFormPage';
 import { UsersPage } from './pages/UsersPage';
 import { UserFormPage } from './pages/UserFormPage';
+import { OwnersPage } from './pages/OwnersPage';
+import { OwnerFormPage } from './pages/OwnerFormPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -63,6 +65,39 @@ function AppRoutes() {
           <PrivateRoute>
             <Layout>
               <PropertyFormPage />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/owners"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <OwnersPage />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/owners/new"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <OwnerFormPage />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/owners/:id/edit"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <OwnerFormPage />
             </Layout>
           </PrivateRoute>
         }

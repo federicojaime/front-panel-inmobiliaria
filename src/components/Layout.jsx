@@ -8,7 +8,8 @@ import {
   Bars3Icon,
   BuildingOfficeIcon,
   ArrowRightOnRectangleIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  UserGroupIcon // Ícono para propietarios
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,7 @@ import logoImage from '../assets/logo.png';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Propiedades', href: '/properties', icon: BuildingOfficeIcon },
+  { name: 'Propietarios', href: '/owners', icon: UserGroupIcon }, // Agregamos la sección de propietarios
   { name: 'Usuarios', href: '/users', icon: UsersIcon },
 ];
 
