@@ -18,8 +18,8 @@ api.interceptors.request.use(
     const token = localStorage.getItem("inmobiliaria_token");
     if (token) {
       // Asegurarse de que el token tiene el prefijo "Bearer "
-      config.headers.Authorization = token.startsWith("Bearer ") 
-        ? token 
+      config.headers.Authorization = token.startsWith("Bearer ")
+        ? token
         : `Bearer ${token}`;
     }
     // Si se envía FormData, eliminamos Content-Type para que axios lo genere correctamente
@@ -57,7 +57,7 @@ export const authService = {
         // Asegurarse de que el token se guarda con el prefijo "Bearer "
         const token = response.data.data.jwt;
         localStorage.setItem(
-          "inmobiliaria_token", 
+          "inmobiliaria_token",
           token.startsWith("Bearer ") ? token : `Bearer ${token}`
         );
         localStorage.setItem(
@@ -85,6 +85,8 @@ export const authService = {
 export const propertyService = {
   getAll: () => api.get("/properties").then((res) => res.data),
   getByStatus: (status) => api.get(`/properties/status/${status}`).then((res) => res.data),
+  // Obtener propiedades inactivas (alquiladas, vendidas, reservadas)
+  getInactive: () => api.get(`/properties/inactive`).then((res) => res.data),
   getById: (id) => api.get(`/property/${id}`).then((res) => res.data),
   create: async (formData) => {
     try {
@@ -116,6 +118,36 @@ export const propertyService = {
       return response.data;
     } catch (error) {
       console.error("Error al actualizar estado:", error.response?.data);
+      throw error;
+    }
+  },
+  // Marcar una propiedad como vendida
+  markAsSold: async (id) => {
+    try {
+      const response = await api.patch(`/property/${id}/status`, { status: 'sold' });
+      return response.data;
+    } catch (error) {
+      console.error("Error al marcar como vendida:", error.response?.data);
+      throw error;
+    }
+  },
+  // Marcar una propiedad como alquilada
+  markAsRented: async (id) => {
+    try {
+      const response = await api.patch(`/property/${id}/status`, { status: 'rented' });
+      return response.data;
+    } catch (error) {
+      console.error("Error al marcar como alquilada:", error.response?.data);
+      throw error;
+    }
+  },
+  // Marcar una propiedad como reservada
+  markAsReserved: async (id) => {
+    try {
+      const response = await api.patch(`/property/${id}/status`, { status: 'reserved' });
+      return response.data;
+    } catch (error) {
+      console.error("Error al marcar como reservada:", error.response?.data);
       throw error;
     }
   },
@@ -159,7 +191,7 @@ export const ownerService = {
         console.error("Error getting owner by document:", err);
         throw err;
       }),
-      
+
   // Función de búsqueda rápida para propietarios
   search: (query) =>
     api

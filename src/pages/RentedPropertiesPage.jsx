@@ -270,30 +270,70 @@ export function RentedPropertiesPage() {
                                         <td className="w-[120px] px-3 py-4 text-sm text-gray-500">
                                             {property.city}
                                         </td>
-                                        <td className="w-[180px] px-3 py-4 text-right text-sm font-medium">
-                                            <div className="flex justify-end space-x-2">
-                                                <Link
-                                                    to={`/properties/${property.id}/edit`}
-                                                    className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
-                                                >
-                                                    <PencilSquareIcon className="h-4 w-4" />
-                                                    Editar
-                                                </Link>
-                                                <button
-                                                    onClick={() => handleExportPDF(property)}
-                                                    className="inline-flex items-center gap-x-1.5 text-blue-600 hover:text-blue-800 transition-colors duration-200"
-                                                >
-                                                    <DocumentCheckIcon className="h-4 w-4" />
-                                                    PDF
-                                                </button>
-                                                <button
-                                                    onClick={() => markAsAvailable(property.id)}
-                                                    className="inline-flex items-center gap-x-1.5 text-green-600 hover:text-green-800 transition-colors duration-200"
-                                                >
-                                                    <KeyIcon className="h-4 w-4" />
-                                                    Disponible
-                                                </button>
+                                        <td className="w-[150px] px-3 py-4 text-right text-sm font-medium">
+                                            <div className="flex flex-col space-y-2">
+                                                <div className="flex space-x-2 justify-end">
+                                                    <Link
+                                                        to={`/properties/${property.id}/edit`}
+                                                        className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
+                                                    >
+                                                        <PencilSquareIcon className="h-4 w-4" />
+                                                        Editar
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleExportPDF(property)}
+                                                        className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
+                                                    >
+                                                        <DocumentCheckIcon className="h-4 w-4" />
+                                                        PDF
+                                                    </button>
+                                                </div>
+                                                <div className="flex justify-end">
+                                                    <div className="relative group">
+                                                        <button
+                                                            type="button"
+                                                            className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                                        >
+                                                            Cambiar estado
+                                                        </button>
+                                                        <div className="absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none hidden group-hover:block">
+                                                            {property.status !== "sold" && (
+                                                                <button
+                                                                    onClick={() => handleStatusChange(property.id, "sold")}
+                                                                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    Marcar como vendido
+                                                                </button>
+                                                            )}
+                                                            {property.status !== "rented" && (
+                                                                <button
+                                                                    onClick={() => handleStatusChange(property.id, "rented")}
+                                                                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    Marcar como alquilado
+                                                                </button>
+                                                            )}
+                                                            {property.status !== "reserved" && (
+                                                                <button
+                                                                    onClick={() => handleStatusChange(property.id, "reserved")}
+                                                                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    Marcar como reservado
+                                                                </button>
+                                                            )}
+                                                            {(property.status === "sold" || property.status === "rented" || property.status === "reserved") && (
+                                                                <button
+                                                                    onClick={() => handleStatusChange(property.id, property.price_usd ? "sale" : "rent")}
+                                                                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                                                >
+                                                                    Reactivar propiedad
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
+
                                         </td>
                                     </tr>
                                 ))

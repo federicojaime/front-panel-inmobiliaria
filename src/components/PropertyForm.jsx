@@ -47,9 +47,11 @@ const PROVINCES = [
 
 // Lista de estados
 const PROPERTY_STATUS = [
-  { id: "sale", name: "Venta" },
-  { id: "rent", name: "Alquiler" },
+  { id: "sale", name: "En Venta" },
+  { id: "rent", name: "En Alquiler" },
   { id: "rented", name: "Alquilado" },
+  { id: "sold", name: "Vendido" },
+  { id: "reserved", name: "Reservado" },
 ];
 
 export function PropertyForm({
