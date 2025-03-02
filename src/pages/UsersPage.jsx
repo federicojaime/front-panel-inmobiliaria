@@ -130,7 +130,7 @@ export function UsersPage() {
                   <td className="whitespace-nowrap py-4 pl-6 pr-3">
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-karttem-gold/10 flex items-center justify-center">
-                        <UserIcon className="h-5 w-5 text-karttem-gold" />
+                        <UserIcon className="h-5 w-5 text-yellow-600" />
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">{user.firstname} {user.lastname}</div>
@@ -144,7 +144,7 @@ export function UsersPage() {
                     <div className="flex justify-end gap-2">
                       <Link
                         to={`/users/${user.id}/edit`}
-                        className="inline-flex items-center gap-x-1.5 text-karttem-gold hover:text-black transition-colors duration-200"
+                        className="inline-flex items-center gap-x-1.5 text-yellow-600 hover:text-black transition-colors duration-200"
                       >
                         <PencilSquareIcon className="h-4 w-4" />
                         Editar

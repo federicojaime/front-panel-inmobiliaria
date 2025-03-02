@@ -2,8 +2,8 @@
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
-//const API_URL = 'https://codeo.site/api-karttem';
-const API_URL = "http://localhost/inmobiliaria-api";
+// Usar la URL desde el .env
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost/inmobiliaria-api";
 
 const api = axios.create({
   baseURL: API_URL,
@@ -82,17 +82,20 @@ export const authService = {
 };
 
 // Servicio de propiedades
-// Servicio de propiedades
 export const propertyService = {
   getAll: () => api.get("/properties").then((res) => res.data),
-  getByStatus: (status) => api.get(`/properties/status/${status}`).then((res) => res.data),
-  // Obtener propiedades vendidas
-  getSold: () => api.get(`/properties/sold`).then((res) => res.data),
-  // Obtener propiedades alquiladas
-  getRented: () => api.get(`/properties/rented`).then((res) => res.data),
-  // Obtener propiedades inactivas (alquiladas, vendidas, reservadas)
-  getInactive: () => api.get(`/properties/unavailable`).then((res) => res.data),
-  getById: (id) => api.get(`/property/${id}`).then((res) => res.data),
+  
+  // Filtrar por estado
+  getByStatus: (status) => 
+    api.get(`/properties/status/${status}`).then((res) => res.data),
+  
+  // Obtener propiedades inactivas (vendidas, alquiladas, reservadas)
+  getInactive: () => 
+    api.get(`/properties/inactive`).then((res) => res.data),
+  
+  getById: (id) => 
+    api.get(`/property/${id}`).then((res) => res.data),
+  
   create: async (formData) => {
     try {
       const response = await api.post("/property", formData, {
@@ -104,6 +107,7 @@ export const propertyService = {
       throw error;
     }
   },
+  
   // Usamos POST para update, igual que en create
   update: async (id, formData) => {
     try {
@@ -116,6 +120,7 @@ export const propertyService = {
       throw error;
     }
   },
+  
   // Actualizar estado de una propiedad
   updateStatus: async (id, status) => {
     try {
@@ -126,63 +131,62 @@ export const propertyService = {
       throw error;
     }
   },
-  // Cambiar disponibilidad de una propiedad
-  changeAvailability: async (id, isAvailable) => {
-    try {
-      const response = await api.patch(`/property/${id}/availability`, { 
-        is_available: isAvailable ? 1 : 0 
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error al cambiar disponibilidad:", error.response?.data);
-      throw error;
-    }
-  },
+  
   // Marcar una propiedad como vendida
   markAsSold: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'vendido', is_available: 0 });
+      const response = await api.patch(`/property/${id}/status`, { status: 'sold' });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como vendida:", error.response?.data);
       throw error;
     }
   },
+  
   // Marcar una propiedad como alquilada
   markAsRented: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'alquilado', is_available: 0 });
+      const response = await api.patch(`/property/${id}/status`, { status: 'rented' });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como alquilada:", error.response?.data);
       throw error;
     }
   },
+  
   // Marcar una propiedad como reservada
   markAsReserved: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'reservado', is_available: 0 });
+      const response = await api.patch(`/property/${id}/status`, { status: 'reserved' });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como reservada:", error.response?.data);
       throw error;
     }
   },
-  // Marcar una propiedad como disponible nuevamente
-  markAsAvailable: async (id, forSale = true) => {
+  
+  // Marcar una propiedad como disponible para venta
+  markAsForSale: async (id) => {
     try {
-      // Dependiendo si es para venta o alquiler, establecemos el estado
-      const status = forSale ? 'venta' : 'alquiler';
-      const response = await api.patch(`/property/${id}/status`, { 
-        status: status,
-        is_available: 1 
-      });
+      const response = await api.patch(`/property/${id}/status`, { status: 'sale' });
       return response.data;
     } catch (error) {
-      console.error("Error al marcar como disponible:", error.response?.data);
+      console.error("Error al marcar como en venta:", error.response?.data);
       throw error;
     }
   },
+
+  // Marcar una propiedad como disponible para alquiler
+  markAsForRent: async (id) => {
+    try {
+      const response = await api.patch(`/property/${id}/status`, { status: 'rent' });
+      return response.data;
+    } catch (error) {
+      console.error("Error al marcar como en alquiler:", error.response?.data);
+      throw error;
+    }
+  },
+  
   delete: (id) => api.delete(`/property/${id}`).then((res) => res.data),
 };
 

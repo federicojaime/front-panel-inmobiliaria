@@ -10,7 +10,8 @@ import {
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   KeyIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Propiedades', href: '/properties', icon: BuildingOfficeIcon },
   { name: 'Alquilados', href: '/properties/rented', icon: KeyIcon },
+  { name: 'Vendidos', href: '/properties/sold', icon: CheckCircleIcon },
   { name: 'Propietarios', href: '/owners', icon: UserGroupIcon },
   { name: 'Usuarios', href: '/users', icon: UserCircleIcon },
 ];
@@ -78,9 +80,9 @@ export default function Layout({ children }) {
                     leaveTo="opacity-0"
                   >
                     <div className="absolute right-0 top-0 -mr-12 pt-2">
-                      <button 
-                        type="button" 
-                        className="rounded-md p-1 m-1 text-gray-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-white" 
+                      <button
+                        type="button"
+                        className="rounded-md p-1 m-1 text-gray-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
                         onClick={() => setSidebarOpen(false)}
                       >
                         <span className="sr-only">Cerrar menú</span>
@@ -88,7 +90,7 @@ export default function Layout({ children }) {
                       </button>
                     </div>
                   </Transition.Child>
-                  
+
                   {/* Mobile sidebar content */}
                   <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-black px-6 pb-4">
                     <div className="flex h-16 shrink-0 items-center justify-center py-8">

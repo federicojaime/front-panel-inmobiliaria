@@ -1,4 +1,4 @@
-// src/pages/RentedPropertiesPage.jsx
+// src/pages/SoldPropertiesPage.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { propertyService } from "../services/api";
@@ -9,7 +9,7 @@ import {
   PencilSquareIcon,
   DocumentCheckIcon,
   ArrowPathIcon,
-  KeyIcon,
+  CheckCircleIcon,
   FunnelIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -30,7 +30,7 @@ const propertyTypeMap = {
   cochera: "Cochera",
 };
 
-export function RentedPropertiesPage() {
+export function SoldPropertiesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,28 +45,28 @@ export function RentedPropertiesPage() {
   const loadProperties = async () => {
     try {
       setIsLoading(true);
-      const response = await propertyService.getByStatus("rented");
+      const response = await propertyService.getByStatus("sold");
       if (response && response.data) {
         setProperties(response.data || []);
       } else {
         setProperties([]);
       }
     } catch (err) {
-      console.error("Error al cargar propiedades alquiladas:", err);
-      setError("Error al cargar las propiedades alquiladas");
+      console.error("Error al cargar propiedades vendidas:", err);
+      setError("Error al cargar las propiedades vendidas");
       setProperties([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Función para marcar como disponible para alquiler (cambiar estado a "rent")
-  const markAsForRent = async (propertyId) => {
+  // Función para marcar como disponible para venta (cambiar estado a "sale")
+  const markAsForSale = async (propertyId) => {
     try {
-      if (window.confirm("¿Desea marcar esta propiedad como disponible para alquiler?")) {
-        const response = await propertyService.markAsForRent(propertyId);
+      if (window.confirm("¿Desea marcar esta propiedad como disponible para venta?")) {
+        const response = await propertyService.markAsForSale(propertyId);
         if (response.ok) {
-          toast.success("Propiedad marcada como disponible para alquiler");
+          toast.success("Propiedad marcada como disponible para venta");
           loadProperties(); // Recargar la lista
         } else {
           toast.error(response.msg || "Error al actualizar estado");
@@ -78,13 +78,13 @@ export function RentedPropertiesPage() {
     }
   };
 
-  // Función para marcar como disponible para venta (cambiar estado a "sale")
-  const markAsForSale = async (propertyId) => {
+  // Función para marcar como disponible para alquiler (cambiar estado a "rent")
+  const markAsForRent = async (propertyId) => {
     try {
-      if (window.confirm("¿Desea marcar esta propiedad como disponible para venta?")) {
-        const response = await propertyService.markAsForSale(propertyId);
+      if (window.confirm("¿Desea marcar esta propiedad como disponible para alquiler?")) {
+        const response = await propertyService.markAsForRent(propertyId);
         if (response.ok) {
-          toast.success("Propiedad marcada como disponible para venta");
+          toast.success("Propiedad marcada como disponible para alquiler");
           loadProperties(); // Recargar la lista
         } else {
           toast.error(response.msg || "Error al actualizar estado");
@@ -188,7 +188,7 @@ export function RentedPropertiesPage() {
       <div className="flex items-center justify-center min-h-screen -mt-16">
         <div className="flex flex-col items-center gap-4">
           <BuildingOfficeIcon className="w-12 h-12 text-karttem-gold animate-bounce" />
-          <p className="text-gray-600">Cargando propiedades alquiladas...</p>
+          <p className="text-gray-600">Cargando propiedades vendidas...</p>
         </div>
       </div>
     );
@@ -203,7 +203,7 @@ export function RentedPropertiesPage() {
           </div>
           <div className="mt-4 text-center">
             <h3 className="text-lg font-medium text-gray-900">
-              Error al cargar las propiedades alquiladas
+              Error al cargar las propiedades vendidas
             </h3>
             <p className="mt-2 text-sm text-gray-500">
               {error || "Intenta recargar la página."}
@@ -219,9 +219,9 @@ export function RentedPropertiesPage() {
       {/* Header */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Propiedades Alquiladas</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Propiedades Vendidas</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Lista de propiedades que actualmente están alquiladas
+            Lista de propiedades que han sido vendidas
           </p>
         </div>
       </div>
@@ -230,7 +230,7 @@ export function RentedPropertiesPage() {
       <div className="flex flex-wrap gap-4 items-center">
         {/* Contadores */}
         <div className="bg-white shadow-sm rounded-md px-4 py-3 border border-gray-200">
-          <div className="text-sm text-gray-500">Total propiedades alquiladas</div>
+          <div className="text-sm text-gray-500">Total propiedades vendidas</div>
           <div className="text-2xl font-semibold">{properties.length}</div>
         </div>
 
@@ -295,7 +295,7 @@ export function RentedPropertiesPage() {
             </div>
             <input
               type="text"
-              placeholder="Buscar en propiedades alquiladas..."
+              placeholder="Buscar en propiedades vendidas..."
               className="block w-full rounded-lg border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-karttem-gold sm:text-sm sm:leading-6"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -324,7 +324,7 @@ export function RentedPropertiesPage() {
                   scope="col"
                   className="w-[150px] px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                 >
-                  Precio de Alquiler
+                  Precio de Venta
                 </th>
                 <th
                   scope="col"
@@ -359,10 +359,10 @@ export function RentedPropertiesPage() {
                       {propertyTypeMap[property.type] || property.type}
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500">
-                      {property.price_ars
-                        ? `$${Number(property.price_ars).toLocaleString("es-AR")}`
-                        : property.price_usd
+                      {property.price_usd
                         ? `USD $${property.price_usd.toLocaleString()}`
+                        : property.price_ars
+                        ? `$${Number(property.price_ars).toLocaleString("es-AR")}`
                         : "-"}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm text-gray-500">
@@ -388,20 +388,20 @@ export function RentedPropertiesPage() {
                         </div>
                         <div className="flex justify-end space-x-2">
                           <button
-                            onClick={() => markAsForRent(property.id)}
-                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            title="Cambiar a disponible para alquiler"
-                          >
-                            <ArrowPathIcon className="h-3.5 w-3.5 mr-1" />
-                            Disponible
-                          </button>
-                          <button
                             onClick={() => markAsForSale(property.id)}
-                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                             title="Cambiar a disponible para venta"
                           >
                             <ArrowPathIcon className="h-3.5 w-3.5 mr-1" />
                             En venta
+                          </button>
+                          <button
+                            onClick={() => markAsForRent(property.id)}
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            title="Cambiar a disponible para alquiler"
+                          >
+                            <ArrowPathIcon className="h-3.5 w-3.5 mr-1" />
+                            En alquiler
                           </button>
                         </div>
                       </div>
@@ -411,14 +411,14 @@ export function RentedPropertiesPage() {
               ) : (
                 <tr>
                   <td colSpan="5" className="py-12 text-center">
-                    <KeyIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <CheckCircleIcon className="mx-auto h-12 w-12 text-gray-400" />
                     <h3 className="mt-2 text-sm font-semibold text-gray-900">
-                      No hay propiedades alquiladas
+                      No hay propiedades vendidas
                     </h3>
                     <p className="mt-1 text-sm text-gray-500">
                       {searchTerm || propertyTypes.length > 0
                         ? "No se encontraron propiedades que coincidan con tu búsqueda."
-                        : "No hay propiedades alquiladas actualmente."}
+                        : "No hay propiedades vendidas actualmente."}
                     </p>
                   </td>
                 </tr>

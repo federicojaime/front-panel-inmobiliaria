@@ -3,19 +3,26 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { propertyService } from "../services/api";
+import { toast } from "react-hot-toast";
 import {
   PlusIcon,
   BuildingOfficeIcon,
   MagnifyingGlassIcon,
   PencilSquareIcon,
   DocumentCheckIcon,
+  CheckCircleIcon,
+  KeyIcon,
+  ArrowPathIcon,
+  FunnelIcon,
+  XMarkIcon,
+  ClockIcon
 } from "@heroicons/react/24/outline";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReactDOMServer from "react-dom/server";
-import PropertyPDF from "../components/PropertyPDF"; // IMPORTACIÓN POR DEFECTO
+import PropertyPDF from "../components/PropertyPDF";
 
-// Mapeo de tipos permitidos por la BD (ajusta según tus tipos)
+// Mapeo de tipos permitidos por la BD
 const propertyTypeMap = {
   casa: "Casa",
   departamento: "Departamento",
@@ -27,20 +34,41 @@ const propertyTypeMap = {
   cochera: "Cochera",
 };
 
+// Mapeo de estados
+const statusMap = {
+  sale: { name: "En Venta", color: "bg-blue-50 text-blue-700 ring-blue-600/20" },
+  rent: { name: "En Alquiler", color: "bg-green-50 text-green-700 ring-green-600/20" },
+  rented: { name: "Alquilado", color: "bg-purple-50 text-purple-700 ring-purple-600/20" },
+  sold: { name: "Vendido", color: "bg-amber-50 text-amber-700 ring-amber-600/20" },
+  reserved: { name: "Reservado", color: "bg-rose-50 text-rose-700 ring-rose-600/20" },
+};
+
 export function PropertiesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [statusFilter, setStatusFilter] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadProperties();
-  }, []);
+  }, [selectedStatus]);
 
   const loadProperties = async () => {
     try {
       setIsLoading(true);
-      const response = await propertyService.getAll();
+      let response;
+      
+      if (selectedStatus === "all") {
+        response = await propertyService.getAll();
+      } else if (selectedStatus === "inactive") {
+        response = await propertyService.getInactive();
+      } else {
+        response = await propertyService.getByStatus(selectedStatus);
+      }
+      
       if (response && response.data) {
         setProperties(response.data || []);
       } else {
@@ -55,27 +83,75 @@ export function PropertiesPage() {
     }
   };
 
+  // Función para cambiar el estado de una propiedad
+  const handleStatusChange = async (propertyId, newStatus) => {
+    try {
+      let response;
+      let successMessage = "";
+      
+      switch (newStatus) {
+        case 'rented':
+          response = await propertyService.markAsRented(propertyId);
+          successMessage = "Propiedad marcada como alquilada";
+          break;
+        case 'sold':
+          response = await propertyService.markAsSold(propertyId);
+          successMessage = "Propiedad marcada como vendida";
+          break;
+        case 'reserved':
+          response = await propertyService.markAsReserved(propertyId);
+          successMessage = "Propiedad marcada como reservada";
+          break;
+        case 'sale':
+          response = await propertyService.markAsForSale(propertyId);
+          successMessage = "Propiedad marcada como disponible para venta";
+          break;
+        case 'rent':
+          response = await propertyService.markAsForRent(propertyId);
+          successMessage = "Propiedad marcada como disponible para alquiler";
+          break;
+        default:
+          throw new Error('Estado no válido');
+      }
+      
+      if (response.ok) {
+        toast.success(successMessage);
+        loadProperties(); // Recargar la lista
+      } else {
+        toast.error(response.msg || "Error al actualizar estado");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al actualizar el estado de la propiedad");
+    }
+  };
+
   // Filtro de búsqueda
   const filteredProperties = properties?.filter((property) => {
-    const lowerSearch = searchTerm.toLowerCase();
-    return (
-      property?.title?.toLowerCase().includes(lowerSearch) ||
-      property?.address?.toLowerCase().includes(lowerSearch)
-    );
+    // Filtrar por término de búsqueda
+    const matchesSearch = searchTerm === "" || 
+      property?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property?.address?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtrar por estados seleccionados
+    const matchesStatus = statusFilter.length === 0 || 
+      statusFilter.includes(property.status);
+    
+    return matchesSearch && matchesStatus;
   }) || [];
 
-  // Función para exportar PDF (una sola propiedad)
+  // Función para exportar PDF
   const handleExportPDF = async (property) => {
     try {
       // Renderizar el componente PropertyPDF como HTML estático
       const pdfContent = ReactDOMServer.renderToStaticMarkup(
-        <PropertyPDF property={property} propertyTypeMap={propertyTypeMap} />
+        <PropertyPDF property={property} />
       );
 
       // Crear un contenedor temporal en el DOM y agregar el contenido HTML
       const container = document.createElement("div");
       container.innerHTML = pdfContent;
-      container.style.width = "700px"; // Ancho máximo definido en PropertyPDF
+      container.style.width = "700px";
       container.style.padding = "20px";
       container.style.fontFamily = "Arial, sans-serif";
       document.body.appendChild(container);
@@ -87,7 +163,7 @@ export function PropertiesPage() {
       // Eliminar el contenedor temporal del DOM
       document.body.removeChild(container);
 
-      // Crear el PDF con jsPDF (A4 en vertical, usando px)
+      // Crear el PDF con jsPDF
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "px",
@@ -120,8 +196,37 @@ export function PropertiesPage() {
       pdf.save(`${property.title || "Propiedad"}.pdf`);
     } catch (error) {
       console.error("Error al exportar PDF:", error);
-      alert("Ocurrió un error al exportar el PDF.");
+      toast.error("Ocurrió un error al exportar el PDF.");
     }
+  };
+
+  // Función para renderizar la insignia de estado
+  const renderStatusBadge = (status) => {
+    const statusInfo = statusMap[status] || { 
+      name: "Desconocido", 
+      color: "bg-gray-50 text-gray-700 ring-gray-600/20" 
+    };
+    
+    return (
+      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${statusInfo.color}`}>
+        {statusInfo.name}
+      </span>
+    );
+  };
+
+  // Toggle para el filtro de estados
+  const toggleStatusFilter = (status) => {
+    setStatusFilter(prev => 
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    );
+  };
+
+  // Limpiar todos los filtros
+  const clearFilters = () => {
+    setStatusFilter([]);
+    setSearchTerm("");
   };
 
   if (isLoading) {
@@ -174,6 +279,123 @@ export function PropertiesPage() {
         </Link>
       </div>
 
+      {/* Selector de vista y filtros */}
+      <div className="flex flex-wrap gap-4 items-center">
+        {/* Selector de estado para cargar las propiedades */}
+        <div className="flex overflow-x-auto space-x-1 pb-1">
+          <button
+            onClick={() => setSelectedStatus("all")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "all"
+                ? "bg-karttem-gold text-black"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => setSelectedStatus("sale")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "sale"
+                ? "bg-blue-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            En Venta
+          </button>
+          <button
+            onClick={() => setSelectedStatus("rent")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "rent"
+                ? "bg-green-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            En Alquiler
+          </button>
+          <button
+            onClick={() => setSelectedStatus("rented")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "rented"
+                ? "bg-purple-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Alquilados
+          </button>
+          <button
+            onClick={() => setSelectedStatus("sold")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "sold"
+                ? "bg-amber-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Vendidos
+          </button>
+          <button
+            onClick={() => setSelectedStatus("reserved")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+              selectedStatus === "reserved"
+                ? "bg-rose-600 text-white"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Reservados
+          </button>
+        </div>
+
+        
+        <div className="flex ml-auto">
+        {/* Botones para los filtros adicionales   <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-x-2 px-3 py-1.5 text-sm font-medium rounded-md bg-white border border-gray-300 hover:bg-gray-50"
+          >
+            <FunnelIcon className="h-4 w-4" />
+            Filtros
+            {statusFilter.length > 0 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                {statusFilter.length}
+              </span>
+            )}
+          </button>*/}
+          
+          {(statusFilter.length > 0 || searchTerm) && (
+            <button
+              onClick={clearFilters}
+              className="ml-2 flex items-center gap-x-2 px-3 py-1.5 text-sm font-medium rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700"
+            >
+              <XMarkIcon className="h-4 w-4" />
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Panel de filtros avanzados */}
+      {showFilters && (
+        <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+          <div className="mb-3">
+            <h3 className="text-sm font-medium text-gray-700">Filtrar por estado</h3>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {Object.entries(statusMap).map(([key, { name, color }]) => (
+                <button
+                  key={key}
+                  onClick={() => toggleStatusFilter(key)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md ${
+                    statusFilter.includes(key)
+                      ? "bg-gray-800 text-white"
+                      : "bg-white border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contenedor de búsqueda y tabla */}
       <div className="bg-white rounded-xl shadow">
         {/* Barra de búsqueda */}
@@ -205,7 +427,7 @@ export function PropertiesPage() {
                 </th>
                 <th
                   scope="col"
-                  className="w-[150px] px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                  className="w-[120px] px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                 >
                   Tipo
                 </th>
@@ -229,7 +451,7 @@ export function PropertiesPage() {
                 </th>
                 <th
                   scope="col"
-                  className="w-[120px] px-3 py-3.5 text-right text-sm font-medium"
+                  className="w-[180px] px-3 py-3.5 text-right text-sm font-medium"
                 >
                   Acciones
                 </th>
@@ -250,15 +472,11 @@ export function PropertiesPage() {
                         {property.address}
                       </div>
                     </td>
-                    <td className="w-[150px] px-3 py-4 text-sm text-gray-500 capitalize">
+                    <td className="w-[120px] px-3 py-4 text-sm text-gray-500 capitalize">
                       {propertyTypeMap[property.type] || property.type}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm">
-                      {property.status === "sale"
-                        ? "En Venta"
-                        : property.status === "rent"
-                        ? "En Alquiler"
-                        : "Alquiler Temporal"}
+                      {renderStatusBadge(property.status)}
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500">
                       {property.price_usd
@@ -268,23 +486,87 @@ export function PropertiesPage() {
                         : "-"}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm text-gray-500">
-                      {property.city}
+                      {property.city || "-"}
                     </td>
-                    <td className="w-[120px] px-3 py-4 text-right text-sm font-medium">
-                      <Link
-                        to={`/properties/${property.id}/edit`}
-                        className="inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
-                      >
-                        <PencilSquareIcon className="h-4 w-4" />
-                        Editar
-                      </Link>
-                      <button
-                        onClick={() => handleExportPDF(property)}
-                        className="ml-2 inline-flex items-center gap-x-1.5 text-karttem-black hover:text-orange-900 transition-colors duration-200"
-                      >
-                        <DocumentCheckIcon className="h-4 w-4" />
-                        PDF
-                      </button>
+                    <td className="w-[180px] px-3 py-4 text-right text-sm font-medium">
+                      {/* Botones de acción y estado */}
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex space-x-2 justify-end">
+                          <Link
+                            to={`/properties/${property.id}/edit`}
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          >
+                            <PencilSquareIcon className="h-4 w-4 mr-1" />
+                            Editar
+                          </Link>
+                          <button
+                            onClick={() => handleExportPDF(property)}
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          >
+                            <DocumentCheckIcon className="h-4 w-4 mr-1" />
+                            PDF
+                          </button>
+                        </div>
+                        
+                        {/* Botones de estado - Versión simplificada y directa */}
+                        <div className="flex flex-wrap justify-end gap-1 mt-1">
+                          {property.status !== "sold" && (
+                            <button
+                              onClick={() => handleStatusChange(property.id, "sold")}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700"
+                              title="Marcar como vendido"
+                            >
+                              <CheckCircleIcon className="h-3.5 w-3.5 mr-1" />
+                              Vendido
+                            </button>
+                          )}
+                          
+                          {property.status !== "rented" && (
+                            <button
+                              onClick={() => handleStatusChange(property.id, "rented")}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+                              title="Marcar como alquilado"
+                            >
+                              <KeyIcon className="h-3.5 w-3.5 mr-1" />
+                              Alquilado
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {property.status !== "reserved" && (
+                            <button
+                              onClick={() => handleStatusChange(property.id, "reserved")}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-rose-600 hover:bg-rose-700"
+                              title="Marcar como reservado"
+                            >
+                              <ClockIcon className="h-3.5 w-3.5 mr-1" />
+                              Reservado
+                            </button>
+                          )}
+                          
+                          {property.status !== "sale" && (
+                            <button
+                              onClick={() => handleStatusChange(property.id, "sale")}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                              title="Marcar como en venta"
+                            >
+                              <ArrowPathIcon className="h-3.5 w-3.5 mr-1" />
+                              En venta
+                            </button>
+                          )}
+                          
+                          {property.status !== "rent" && (
+                            <button
+                              onClick={() => handleStatusChange(property.id, "rent")}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                              title="Marcar como en alquiler"
+                            >
+                              <ArrowPathIcon className="h-3.5 w-3.5 mr-1" />
+                              En alquiler
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -296,7 +578,7 @@ export function PropertiesPage() {
                       No hay propiedades
                     </h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm
+                      {searchTerm || statusFilter.length > 0
                         ? "No se encontraron propiedades que coincidan con tu búsqueda."
                         : "Comienza agregando una nueva propiedad."}
                     </p>
