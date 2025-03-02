@@ -13,6 +13,7 @@ import { OwnerFormPage } from './pages/OwnerFormPage';
 import { RentedPropertiesPage } from './pages/RentedPropertiesPage';
 import { SoldPropertiesPage } from './pages/SoldPropertiesPage';
 
+
 function PrivateRoute({ children }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/login" replace />;
