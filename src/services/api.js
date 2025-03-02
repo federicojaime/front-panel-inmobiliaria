@@ -82,11 +82,16 @@ export const authService = {
 };
 
 // Servicio de propiedades
+// Servicio de propiedades
 export const propertyService = {
   getAll: () => api.get("/properties").then((res) => res.data),
   getByStatus: (status) => api.get(`/properties/status/${status}`).then((res) => res.data),
+  // Obtener propiedades vendidas
+  getSold: () => api.get(`/properties/sold`).then((res) => res.data),
+  // Obtener propiedades alquiladas
+  getRented: () => api.get(`/properties/rented`).then((res) => res.data),
   // Obtener propiedades inactivas (alquiladas, vendidas, reservadas)
-  getInactive: () => api.get(`/properties/inactive`).then((res) => res.data),
+  getInactive: () => api.get(`/properties/unavailable`).then((res) => res.data),
   getById: (id) => api.get(`/property/${id}`).then((res) => res.data),
   create: async (formData) => {
     try {
@@ -121,10 +126,22 @@ export const propertyService = {
       throw error;
     }
   },
+  // Cambiar disponibilidad de una propiedad
+  changeAvailability: async (id, isAvailable) => {
+    try {
+      const response = await api.patch(`/property/${id}/availability`, { 
+        is_available: isAvailable ? 1 : 0 
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error al cambiar disponibilidad:", error.response?.data);
+      throw error;
+    }
+  },
   // Marcar una propiedad como vendida
   markAsSold: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'sold' });
+      const response = await api.patch(`/property/${id}/status`, { status: 'vendido', is_available: 0 });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como vendida:", error.response?.data);
@@ -134,7 +151,7 @@ export const propertyService = {
   // Marcar una propiedad como alquilada
   markAsRented: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'rented' });
+      const response = await api.patch(`/property/${id}/status`, { status: 'alquilado', is_available: 0 });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como alquilada:", error.response?.data);
@@ -144,10 +161,25 @@ export const propertyService = {
   // Marcar una propiedad como reservada
   markAsReserved: async (id) => {
     try {
-      const response = await api.patch(`/property/${id}/status`, { status: 'reserved' });
+      const response = await api.patch(`/property/${id}/status`, { status: 'reservado', is_available: 0 });
       return response.data;
     } catch (error) {
       console.error("Error al marcar como reservada:", error.response?.data);
+      throw error;
+    }
+  },
+  // Marcar una propiedad como disponible nuevamente
+  markAsAvailable: async (id, forSale = true) => {
+    try {
+      // Dependiendo si es para venta o alquiler, establecemos el estado
+      const status = forSale ? 'venta' : 'alquiler';
+      const response = await api.patch(`/property/${id}/status`, { 
+        status: status,
+        is_available: 1 
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error al marcar como disponible:", error.response?.data);
       throw error;
     }
   },
