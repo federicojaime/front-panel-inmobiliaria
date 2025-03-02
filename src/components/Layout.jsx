@@ -10,7 +10,7 @@ import {
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   KeyIcon,
-  UserGroupIcon // Ícono para propietarios
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -21,7 +21,7 @@ import logoImage from '../assets/logo.png';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Propiedades', href: '/properties', icon: BuildingOfficeIcon },
-  { name: 'Alquilados', href: '/properties/rented', icon: KeyIcon }, // Nueva sección
+  { name: 'Alquilados', href: '/properties/rented', icon: KeyIcon },
   { name: 'Propietarios', href: '/owners', icon: UserGroupIcon },
   { name: 'Usuarios', href: '/users', icon: UserCircleIcon },
 ];
@@ -31,9 +31,16 @@ export default function Layout({ children }) {
   const { logout, user } = useAuth();
   const location = useLocation();
 
+  // Función para cerrar el sidebar al hacer clic en un elemento de navegación en móvil
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024) { // lg breakpoint en Tailwind
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <>
-      <div>
+      <div className="h-full min-h-screen bg-gray-50">
         {/* Mobile sidebar */}
         <Transition.Root show={sidebarOpen} as={Fragment}>
           <Dialog as="div" className="relative z-50 lg:hidden" onClose={setSidebarOpen}>
@@ -70,10 +77,14 @@ export default function Layout({ children }) {
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                   >
-                    <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
-                      <button type="button" className="-m-2.5 p-2.5" onClick={() => setSidebarOpen(false)}>
-                        <span className="sr-only">Close sidebar</span>
-                        <XMarkIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                    <div className="absolute right-0 top-0 -mr-12 pt-2">
+                      <button 
+                        type="button" 
+                        className="rounded-md p-1 m-1 text-gray-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-white" 
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <span className="sr-only">Cerrar menú</span>
+                        <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                       </button>
                     </div>
                   </Transition.Child>
@@ -103,6 +114,7 @@ export default function Layout({ children }) {
                                       : 'text-gray-300 hover:text-karttem-gold hover:bg-gray-900'
                                     }
                                   `}
+                                  onClick={handleNavClick}
                                 >
                                   <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
                                   {item.name}
@@ -110,6 +122,23 @@ export default function Layout({ children }) {
                               </li>
                             ))}
                           </ul>
+                        </li>
+
+                        {/* User section en móvil */}
+                        <li className="mt-auto">
+                          <div className="border-t border-gray-800 pt-4">
+                            <div className="flex items-center gap-x-3 p-2 text-sm font-semibold leading-6 text-gray-300">
+                              <UserCircleIcon className="h-6 w-6 text-gray-400" />
+                              <span className="truncate">{user?.firstname} {user?.lastname}</span>
+                            </div>
+                            <button
+                              onClick={logout}
+                              className="group flex w-full gap-x-3 rounded-xl p-2 text-sm font-semibold leading-6 text-gray-300 hover:text-karttem-gold hover:bg-gray-900 transition-all duration-200"
+                            >
+                              <ArrowRightOnRectangleIcon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                              Cerrar sesión
+                            </button>
+                          </div>
                         </li>
                       </ul>
                     </nav>
@@ -160,7 +189,7 @@ export default function Layout({ children }) {
                   <div className="border-t border-gray-800 pt-4">
                     <div className="flex items-center gap-x-3 p-2 text-sm font-semibold leading-6 text-gray-300">
                       <UserCircleIcon className="h-6 w-6 text-gray-400" />
-                      <span>{user?.firstname} {user?.lastname}</span>
+                      <span className="truncate">{user?.firstname} {user?.lastname}</span>
                     </div>
                     <button
                       onClick={logout}
@@ -177,7 +206,7 @@ export default function Layout({ children }) {
         </div>
 
         {/* Main content */}
-        <div className="lg:pl-72">
+        <div className="lg:pl-72 min-h-screen flex flex-col">
           {/* Top bar */}
           <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
             <button
@@ -185,29 +214,31 @@ export default function Layout({ children }) {
               className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
               onClick={() => setSidebarOpen(true)}
             >
-              <span className="sr-only">Open sidebar</span>
+              <span className="sr-only">Abrir menú</span>
               <Bars3Icon className="h-6 w-6" aria-hidden="true" />
             </button>
 
+            {/* Título en la barra superior en móvil */}
+            <div className="flex-1 text-center lg:hidden">
+              <h1 className="text-lg font-semibold">Karttem S.A.</h1>
+            </div>
+
             {/* Mobile user menu */}
-            <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-              <div className="flex flex-1" />
-              <div className="flex items-center gap-x-4 lg:hidden">
-                <button
-                  onClick={logout}
-                  className="text-sm font-semibold leading-6 text-gray-900"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
+            <div className="flex items-center gap-x-4 lg:hidden">
+              <button
+                onClick={logout}
+                className="rounded-full bg-gray-100 p-1 text-gray-900 hover:bg-gray-200"
+                title="Cerrar sesión"
+              >
+                <ArrowRightOnRectangleIcon className="h-6 w-6" />
+                <span className="sr-only">Cerrar sesión</span>
+              </button>
             </div>
           </div>
 
           {/* Main content area */}
-          <main className="py-6">
-            <div className="px-4 sm:px-6 lg:px-8">
-              {children}
-            </div>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {children}
           </main>
         </div>
       </div>

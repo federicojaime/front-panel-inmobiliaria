@@ -49,7 +49,7 @@ const PROVINCES = [
 const PROPERTY_STATUS = [
   { id: "sale", name: "Venta" },
   { id: "rent", name: "Alquiler" },
-  { id: "rented", name: "Alquilado" }, // Nuevo estado
+  { id: "rented", name: "Alquilado" },
 ];
 
 export function PropertyForm({
@@ -62,7 +62,7 @@ export function PropertyForm({
     handleSubmit,
     reset,
     setValue,
-    watch, // Añadir esta línea
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -104,6 +104,7 @@ export function PropertyForm({
     },
     mode: "onBlur",
   });
+
   const [uploadedImages, setUploadedImages] = useState(
     initialData?.images || []
   );
@@ -126,14 +127,21 @@ export function PropertyForm({
         status: initialData?.status || "sale",
         price_ars: initialData?.price_ars || "",
         price_usd: initialData?.price_usd || "",
-        area_size: initialData?.area_size || "",
+        covered_area: initialData?.covered_area || "",
+        total_area: initialData?.total_area || "",
         bedrooms: initialData?.bedrooms || "",
         bathrooms: initialData?.bathrooms || "",
         garage: initialData?.garage || false,
+        has_electricity: initialData?.has_electricity || false,
+        has_natural_gas: initialData?.has_natural_gas || false,
+        has_sewage: initialData?.has_sewage || false,
+        has_paved_street: initialData?.has_paved_street || false,
         address: initialData?.address || "",
         city: initialData?.city || "",
         province: initialData?.province || "",
         featured: initialData?.featured || false,
+        latitude: initialData?.latitude || "",
+        longitude: initialData?.longitude || "",
         amenities: initialData?.amenities || {
           has_pool: false,
           has_heating: false,
@@ -172,20 +180,27 @@ export function PropertyForm({
 
   // Función de drop para cargar nuevas imágenes
   const onDrop = useCallback(async (acceptedFiles) => {
-    const newImages = await Promise.all(
-      acceptedFiles.map(async (file) => {
-        const compressedFile = await compressImage(file);
-        return {
-          file: compressedFile,
-          preview: URL.createObjectURL(compressedFile),
-          is_main: false,
-        };
-      })
-    );
-    setUploadedImages((prev) => [...prev, ...newImages]);
+    try {
+      const newImages = await Promise.all(
+        acceptedFiles.map(async (file) => {
+          const compressedFile = await compressImage(file);
+          return {
+            file: compressedFile,
+            preview: URL.createObjectURL(compressedFile),
+            is_main: false,
+          };
+        })
+      );
+
+      setUploadedImages((prev) => [...prev, ...newImages]);
+      toast.success(`${newImages.length} imagen(es) cargada(s) correctamente`);
+    } catch (error) {
+      console.error("Error al procesar imágenes:", error);
+      toast.error("Error al procesar las imágenes");
+    }
   }, []);
 
-  const { getRootProps, getInputProps } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       "image/*": [".jpeg", ".jpg", ".png"],
@@ -195,6 +210,7 @@ export function PropertyForm({
   // Función para eliminar una imagen del estado
   const removeImage = (index) => {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+    toast.success("Imagen eliminada");
   };
 
   // Función para marcar una imagen como principal
@@ -205,6 +221,7 @@ export function PropertyForm({
         is_main: i === index,
       }))
     );
+    toast.success("Imagen principal actualizada");
   };
 
   // Al enviar el formulario se crea un FormData con todos los campos e imágenes
@@ -214,7 +231,7 @@ export function PropertyForm({
       return;
     }
 
-    // Crear formData ANTES de usarla
+    // Crear formData
     const formData = new FormData();
 
     // Añadir coordenadas SI existen
@@ -226,15 +243,17 @@ export function PropertyForm({
     formData.append("description", data.description.trim());
     formData.append("type", data.type.toLowerCase());
     formData.append("status", data.status);
-    formData.append("covered_area", Number(data.covered_area));
-    formData.append("total_area", Number(data.total_area));
+    formData.append("covered_area", Number(data.covered_area) || 0);
+    formData.append("total_area", Number(data.total_area) || 0);
     formData.append("province", data.province);
+
     if (data.price_ars) formData.append("price_ars", Number(data.price_ars));
     if (data.price_usd) formData.append("price_usd", Number(data.price_usd));
     if (data.bedrooms) formData.append("bedrooms", Number(data.bedrooms));
     if (data.bathrooms) formData.append("bathrooms", Number(data.bathrooms));
     if (data.address?.trim()) formData.append("address", data.address.trim());
     if (data.city?.trim()) formData.append("city", data.city.trim());
+
     formData.append("garage", data.garage === true ? 1 : 0);
     formData.append("has_electricity", data.has_electricity === true ? 1 : 0);
     formData.append("has_natural_gas", data.has_natural_gas === true ? 1 : 0);
@@ -248,7 +267,16 @@ export function PropertyForm({
       formData.append("user_id", user.id);
     }
 
-    uploadedImages.forEach((img) => {
+    // Si no hay imágenes, agregar un campo para indicar que se enviaron 0 imágenes
+    if (uploadedImages.length === 0) {
+      formData.append("no_images", "1");
+    }
+
+    // Procesar las imágenes
+    let hasMainImage = false;
+    uploadedImages.forEach((img, index) => {
+      if (img.is_main) hasMainImage = true;
+
       if (img.url) {
         formData.append("existing_images[]", img.url);
         formData.append("existing_images_main[]", img.is_main ? "1" : "0");
@@ -258,9 +286,28 @@ export function PropertyForm({
       }
     });
 
-    // (Opcional) Debug: Mostrar los campos del FormData
-    for (let pair of formData.entries()) {
-      console.log(pair[0] + ": " + pair[1]);
+    // Si no hay imagen principal marcada, establecer la primera como principal
+    if (uploadedImages.length > 0 && !hasMainImage) {
+      if (uploadedImages[0].url) {
+        // Reemplazar el valor del primer existing_images_main[]
+        const entries = Array.from(formData.entries());
+        const mainImageIndex = entries.findIndex(([key]) => key === "existing_images_main[]");
+        if (mainImageIndex !== -1) {
+          formData.set("existing_images_main[]", "1");
+        }
+      } else if (uploadedImages[0].file) {
+        // Reemplazar el valor del primer images_main[]
+        const entries = Array.from(formData.entries());
+        const mainImageIndex = entries.findIndex(([key]) => key === "images_main[]");
+        if (mainImageIndex !== -1) {
+          formData.set("images_main[]", "1");
+        }
+      }
+
+      // Actualizar el estado local para reflejar el cambio
+      setUploadedImages(prev =>
+        prev.map((img, i) => i === 0 ? { ...img, is_main: true } : img)
+      );
     }
 
     onSubmit(formData);
@@ -273,7 +320,7 @@ export function PropertyForm({
     >
       <div className="space-y-8 divide-y divide-gray-200">
         {/* Sección de información básica */}
-        <div>
+        <div className="pt-4">
           <div>
             <h3 className="text-lg font-medium leading-6 text-gray-900">
               Información de la Propiedad
@@ -284,7 +331,7 @@ export function PropertyForm({
           </div>
           <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
             {/* Título */}
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-6 md:col-span-4">
               <label
                 htmlFor="title"
                 className="block text-sm font-medium text-gray-700"
@@ -310,6 +357,7 @@ export function PropertyForm({
                 )}
               </div>
             </div>
+
             {/* Descripción */}
             <div className="sm:col-span-6">
               <label
@@ -338,7 +386,8 @@ export function PropertyForm({
                 )}
               </div>
             </div>
-            {/* Tipo */}
+
+            {/* Tipo y Estado */}
             <div className="sm:col-span-3">
               <label
                 htmlFor="type"
@@ -366,7 +415,7 @@ export function PropertyForm({
                 )}
               </div>
             </div>
-            {/* Estado */}
+
             <div className="sm:col-span-3">
               <label
                 htmlFor="status"
@@ -394,157 +443,158 @@ export function PropertyForm({
                 )}
               </div>
             </div>
-            {/* Precios y Área */}
-            <div className="sm:col-span-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="price_ars"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Precio en ARS
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("price_ars", {
-                      setValueAs: (v) => (v === "" ? null : parseFloat(v)),
-                    })}
-                    className="block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="price_usd"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Precio en USD
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register("price_usd", {
-                      setValueAs: (v) => (v === "" ? null : parseFloat(v)),
-                    })}
-                    className="block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              {/* Superficies */}
-              <div className="sm:col-span-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="covered_area"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Superficie Cubierta (m²)
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="number"
-                      step="0.01"
-                      {...register("covered_area", {
-                        required: "La superficie cubierta es requerida",
-                        min: {
-                          value: 1,
-                          message: "La superficie cubierta debe ser mayor a 0",
-                        },
-                      })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    />
-                    {errors.covered_area && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.covered_area.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="total_area"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Superficie del Terreno (m²)
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="number"
-                      step="0.01"
-                      {...register("total_area", {
-                        required: "La superficie del terreno es requerida",
-                        min: {
-                          value: 1,
-                          message:
-                            "La superficie del terreno debe ser mayor a 0",
-                        },
-                      })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    />
-                    {errors.total_area && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.total_area.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
 
-              {/* Servicios */}
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-gray-700 mb-4">
-                  Servicios Disponibles
-                </label>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register("has_electricity")}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Luz</span>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register("has_natural_gas")}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Gas Natural
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register("has_sewage")}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Cloacas</span>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register("has_paved_street")}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Calle Asfaltada
-                    </span>
-                  </div>
+            {/* Precios */}
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="price_ars"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Precio en ARS
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  {...register("price_ars", {
+                    setValueAs: (v) => (v === "" ? null : parseFloat(v)),
+                  })}
+                  className="block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="price_usd"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Precio en USD
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  {...register("price_usd", {
+                    setValueAs: (v) => (v === "" ? null : parseFloat(v)),
+                  })}
+                  className="block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            {/* Superficies */}
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="covered_area"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Superficie Cubierta (m²)
+              </label>
+              <div className="mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  {...register("covered_area", {
+                    required: "La superficie cubierta es requerida",
+                    min: {
+                      value: 1,
+                      message: "La superficie cubierta debe ser mayor a 0",
+                    },
+                  })}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                />
+                {errors.covered_area && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.covered_area.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label
+                htmlFor="total_area"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Superficie del Terreno (m²)
+              </label>
+              <div className="mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  {...register("total_area", {
+                    required: "La superficie del terreno es requerida",
+                    min: {
+                      value: 1,
+                      message:
+                        "La superficie del terreno debe ser mayor a 0",
+                    },
+                  })}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                />
+                {errors.total_area && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.total_area.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Servicios */}
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Servicios Disponibles
+              </label>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register("has_electricity")}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Luz</span>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register("has_natural_gas")}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    Gas Natural
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register("has_sewage")}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Cloacas</span>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register("has_paved_street")}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    Calle Asfaltada
+                  </span>
                 </div>
               </div>
             </div>
-            {/* Habitaciones, Baños, Dirección, Ciudad */}
+
+            {/* Características adicionales */}
             <div className="sm:col-span-2">
               <label
                 htmlFor="bedrooms"
@@ -561,6 +611,7 @@ export function PropertyForm({
                 />
               </div>
             </div>
+
             <div className="sm:col-span-2">
               <label
                 htmlFor="bathrooms"
@@ -576,7 +627,28 @@ export function PropertyForm({
                 />
               </div>
             </div>
-            <div className="sm:col-span-3">
+
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="garage"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Cochera
+              </label>
+              <div className="mt-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register("garage")}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Tiene cochera</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dirección */}
+            <div className="sm:col-span-6">
               <label
                 htmlFor="address"
                 className="block text-sm font-medium text-gray-700"
@@ -591,7 +663,6 @@ export function PropertyForm({
                 />
               </div>
             </div>
-
 
             <div className="sm:col-span-3">
               <label
@@ -608,6 +679,7 @@ export function PropertyForm({
                 />
               </div>
             </div>
+
             <div className="sm:col-span-3">
               <label
                 htmlFor="province"
@@ -636,8 +708,21 @@ export function PropertyForm({
                 )}
               </div>
             </div>
+
+            {/* Destacado */}
+            <div className="sm:col-span-6">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register("featured")}
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="ml-2 text-sm font-medium text-gray-700">Marcar como propiedad destacada</span>
+              </div>
+            </div>
           </div>
         </div>
+
         {/* Sección de geoposición */}
         <div className="pt-8">
           <div>
@@ -692,15 +777,13 @@ export function PropertyForm({
                   setValue('longitude', lng);
                 }}
               />
-              <p className="mt-2 text-xs text-gray-500">
-                Busca una dirección, haz clic en el mapa para seleccionar la ubicación o arrastra el marcador para ajustarla.
-              </p>
+              
             </div>
           </div>
         </div>
 
         {/* Sección de propietario */}
-        <div className="pt-8 pb-6 border-b border-gray-200">
+        <div className="pt-8 pb-6">
           <div>
             <h3 className="text-lg font-medium leading-6 text-gray-900">
               Información del Propietario
@@ -723,14 +806,21 @@ export function PropertyForm({
         </div>
 
         {/* Sección de imágenes */}
-        <div className="sm:col-span-6">
-          <label className="block text-sm font-medium text-gray-700">
-            Imágenes
-          </label>
-          <div className="mt-1">
+        <div className="pt-8">
+          <div>
+            <h3 className="text-lg font-medium leading-6 text-gray-900">
+              Imágenes
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Agrega imágenes de la propiedad. La primera imagen marcada como principal será la miniatura.
+            </p>
+          </div>
+
+          <div className="mt-4">
             <div
               {...getRootProps()}
-              className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md cursor-pointer hover:border-gray-400"
+              className={`flex justify-center px-6 pt-5 pb-6 border-2 ${isDragActive ? 'border-primary-500 bg-primary-50' : 'border-gray-300 border-dashed'
+                } rounded-md cursor-pointer hover:border-gray-400 transition-colors`}
             >
               <div className="space-y-1 text-center">
                 <svg
@@ -747,66 +837,84 @@ export function PropertyForm({
                     strokeLinejoin="round"
                   />
                 </svg>
-                <div className="flex text-sm text-gray-600">
+                <div className="flex text-sm text-gray-600 justify-center">
                   <input {...getInputProps()} />
                   <p className="pl-1">
-                    Arrastra imágenes o haz clic para seleccionar
+                    {isDragActive
+                      ? "Suelta las imágenes aquí"
+                      : "Arrastra imágenes o haz clic para seleccionar"}
                   </p>
                 </div>
                 <p className="text-xs text-gray-500">PNG, JPG hasta 10MB</p>
               </div>
             </div>
           </div>
+
           {uploadedImages.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {uploadedImages.map((image, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={
-                      image.preview ||
-                      "https://codeo.site/api-karttem/" + image.url
-                    }
-                    alt={`Preview ${index + 1}`}
-                    className="h-24 w-full object-cover rounded-lg"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                    <div className="absolute top-2 right-2 flex space-x-2">
+            <div className="mt-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Imágenes cargadas ({uploadedImages.length})
+              </h4>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {uploadedImages.map((image, index) => (
+                  <div key={index} className="relative group rounded-lg overflow-hidden shadow-sm border border-gray-200">
+                    <div className="aspect-w-1 aspect-h-1 w-full">
+                      <img
+                        src={
+                          image.preview ||
+                          (image.url.startsWith('http')
+                            ? image.url
+                            : import.meta.env.VITE_API_URL + "/" + image.url)
+                        }
+                        alt={`Vista previa ${index + 1}`}
+                        className="h-36 w-full object-cover"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="p-1 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => removeImage(index)}
-                        className="p-1 bg-red-500 rounded-full text-white hover:bg-red-600"
+                        onClick={() => toggleMainImage(index)}
+                        className={`self-start px-2 py-1 text-xs rounded-md ${image.is_main
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          } transition-colors`}
                       >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
+                        {image.is_main ? "Principal ✓" : "Hacer principal"}
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleMainImage(index)}
-                      className={`absolute bottom-2 left-2 px-2 py-1 text-xs rounded ${image.is_main
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
-                    >
-                      {image.is_main ? "Principal" : "Hacer principal"}
-                    </button>
+                    {image.is_main && (
+                      <div className="absolute top-0 left-0 bg-green-500 text-white px-2 py-1 text-xs">
+                        Principal
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
+
         {/* Sección de amenidades */}
         <div className="pt-8">
           <div>
@@ -814,11 +922,11 @@ export function PropertyForm({
               Amenidades
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Seleccione las características de la propiedad.
+              Seleccione las características adicionales de la propiedad.
             </p>
           </div>
           <div className="mt-6">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 md:grid-cols-4">
               {[
                 { id: "has_pool", label: "Piscina" },
                 { id: "has_heating", label: "Calefacción" },
@@ -847,15 +955,24 @@ export function PropertyForm({
           </div>
         </div>
       </div>
+
       {/* Botón de envío */}
       <div className="pt-5">
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="ml-3 inline-flex justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+            className="px-6 py-3 rounded-lg bg-green-600 text-white font-medium shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Guardando..." : "Guardar"}
+            {isSubmitting ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Guardando...
+              </span>
+            ) : "Guardar Propiedad"}
           </button>
         </div>
       </div>

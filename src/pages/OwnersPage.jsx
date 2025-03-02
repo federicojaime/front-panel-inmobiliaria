@@ -195,7 +195,7 @@ export function OwnersPage() {
                                             <div className="flex justify-end gap-2">
                                                 <Link
                                                     to={`/owners/${owner.id}/edit`}
-                                                    className="inline-flex items-center gap-x-1.5 text-karttem-gold hover:text-black transition-colors duration-200"
+                                                    className="inline-flex items-center gap-x-1.5 text-cyan-700 hover:text-black transition-colors duration-200"
                                                 >
                                                     <PencilSquareIcon className="h-4 w-4" />
                                                     Editar
