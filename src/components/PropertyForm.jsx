@@ -49,7 +49,7 @@ const PROVINCES = [
 const PROPERTY_STATUS = [
   { id: "sale", name: "Venta" },
   { id: "rent", name: "Alquiler" },
-  /*{ id: "temporary_rent", name: "Alquiler Temporal" },*/
+  { id: "rented", name: "Alquilado" }, // Nuevo estado
 ];
 
 export function PropertyForm({
@@ -213,10 +213,14 @@ export function PropertyForm({
       toast.error("Debe seleccionar un propietario");
       return;
     }
-    // En la función onSubmitForm, añadir:
+
+    // Crear formData ANTES de usarla
+    const formData = new FormData();
+
+    // Añadir coordenadas SI existen
     if (data.latitude) formData.append("latitude", data.latitude);
     if (data.longitude) formData.append("longitude", data.longitude);
-    const formData = new FormData();
+
     formData.append("owner_id", selectedOwner.id);
     formData.append("title", data.title.trim());
     formData.append("description", data.description.trim());

@@ -10,6 +10,7 @@ import { UsersPage } from './pages/UsersPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { OwnersPage } from './pages/OwnersPage';
 import { OwnerFormPage } from './pages/OwnerFormPage';
+import { RentedPropertiesPage } from './pages/RentedPropertiesPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -25,7 +26,7 @@ function AppRoutes() {
         path="/login"
         element={user ? <Navigate to="/" replace /> : <LoginPage />}
       />
-      
+
       <Route
         path="/"
         element={
@@ -36,7 +37,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
       <Route
         path="/properties"
         element={
@@ -47,7 +48,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
       <Route
         path="/properties/new"
         element={
@@ -58,7 +59,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
-      
+
       <Route
         path="/properties/:id/edit"
         element={
@@ -120,6 +121,16 @@ function AppRoutes() {
           <PrivateRoute>
             <Layout>
               <UserFormPage />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/properties/rented"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <RentedPropertiesPage />
             </Layout>
           </PrivateRoute>
         }

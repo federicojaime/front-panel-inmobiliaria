@@ -17,7 +17,10 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("inmobiliaria_token");
     if (token) {
-      config.headers.Authorization = token;
+      // Asegurarse de que el token tiene el prefijo "Bearer "
+      config.headers.Authorization = token.startsWith("Bearer ") 
+        ? token 
+        : `Bearer ${token}`;
     }
     // Si se envía FormData, eliminamos Content-Type para que axios lo genere correctamente
     if (config.data instanceof FormData) {
@@ -51,7 +54,12 @@ export const authService = {
       const response = await api.post("/user/login", credentials);
       console.log("Respuesta login:", response.data);
       if (response.data.ok) {
-        localStorage.setItem("inmobiliaria_token", response.data.data.jwt);
+        // Asegurarse de que el token se guarda con el prefijo "Bearer "
+        const token = response.data.data.jwt;
+        localStorage.setItem(
+          "inmobiliaria_token", 
+          token.startsWith("Bearer ") ? token : `Bearer ${token}`
+        );
         localStorage.setItem(
           "inmobiliaria_user",
           JSON.stringify(response.data.data)
@@ -76,6 +84,7 @@ export const authService = {
 // Servicio de propiedades
 export const propertyService = {
   getAll: () => api.get("/properties").then((res) => res.data),
+  getByStatus: (status) => api.get(`/properties/status/${status}`).then((res) => res.data),
   getById: (id) => api.get(`/property/${id}`).then((res) => res.data),
   create: async (formData) => {
     try {
@@ -100,6 +109,16 @@ export const propertyService = {
       throw error;
     }
   },
+  // Actualizar estado de una propiedad
+  updateStatus: async (id, status) => {
+    try {
+      const response = await api.patch(`/property/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      console.error("Error al actualizar estado:", error.response?.data);
+      throw error;
+    }
+  },
   delete: (id) => api.delete(`/property/${id}`).then((res) => res.data),
 };
 
@@ -108,10 +127,11 @@ export const userService = {
   getAll: () => api.get("/users").then((res) => res.data),
   getById: (id) => api.get(`/user/${id}`).then((res) => res.data),
   create: (data) => api.post("/user", data).then((res) => res.data),
+  update: (id, data) => api.put(`/user/${id}`, data).then((res) => res.data),
   delete: (id) => api.delete(`/user/${id}`).then((res) => res.data),
 };
+
 // Servicio de propietarios
-// Modificar el servicio ownerService en api.js para manejar errores correctamente
 export const ownerService = {
   getAll: () =>
     api
@@ -137,6 +157,16 @@ export const ownerService = {
       .then((res) => res.data)
       .catch((err) => {
         console.error("Error getting owner by document:", err);
+        throw err;
+      }),
+      
+  // Función de búsqueda rápida para propietarios
+  search: (query) =>
+    api
+      .get(`/owners/search?q=${encodeURIComponent(query)}`)
+      .then((res) => res.data)
+      .catch((err) => {
+        console.error("Error searching owners:", err);
         throw err;
       }),
 

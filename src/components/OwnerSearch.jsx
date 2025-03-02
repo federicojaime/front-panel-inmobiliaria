@@ -1,8 +1,8 @@
 // src/components/OwnerSearch.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ownerService } from "../services/api";
 import { toast } from "react-hot-toast";
-import { ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { ExclamationCircleIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 const DOCUMENT_TYPES = [
   { id: "dni", name: "DNI" },
@@ -35,6 +35,9 @@ const DOCUMENT_RULES = {
 export function OwnerSearch({ onOwnerSelect }) {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [formData, setFormData] = useState({
     documentType: "dni",
     documentNumber: "",
@@ -46,6 +49,39 @@ export function OwnerSearch({ onOwnerSelect }) {
     province: "",
     isCompany: false,
   });
+
+  // Efecto para buscar propietarios al escribir
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim().length > 2) {
+        quickSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  // Función de búsqueda rápida por nombre, email o documento
+  const quickSearch = async (query) => {
+    if (!query.trim()) return;
+    
+    setIsSearching(true);
+    try {
+      const response = await ownerService.search(query);
+      if (response.ok) {
+        setSearchResults(response.data || []);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Error en búsqueda:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   // Función para validar el número de documento según el tipo
   const validateDocument = (type, number) => {
@@ -80,9 +116,7 @@ export function OwnerSearch({ onOwnerSelect }) {
     if (numbers.length !== 11) return value;
 
     // Formatear como XX-XXXXXXXX-X
-    return `${numbers.slice(0, 2)}-${numbers.slice(2, 10)}-${numbers.slice(
-      10
-    )}`;
+    return `${numbers.slice(0, 2)}-${numbers.slice(2, 10)}-${numbers.slice(10)}`;
   };
 
   // Función para validar email
@@ -238,6 +272,11 @@ export function OwnerSearch({ onOwnerSelect }) {
     }
   };
 
+  const handleOwnerSelect = (owner) => {
+    onOwnerSelect(owner);
+    toast.success("Propietario seleccionado");
+  };
+
   const handleDocumentTypeChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -252,11 +291,76 @@ export function OwnerSearch({ onOwnerSelect }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
-      {/* Sección de búsqueda */}
+      {/* Búsqueda rápida */}
       <div className="mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Buscar Propietario
         </h3>
+
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, email o documento..."
+            className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 shadow-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {isSearching ? (
+          <div className="mt-2 text-center text-sm text-gray-500">
+            Buscando...
+          </div>
+        ) : (
+          searchResults.length > 0 && (
+            <div className="mt-2 max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-sm">
+              <ul className="divide-y divide-gray-200">
+                {searchResults.map((owner) => (
+                  <li
+                    key={owner.id}
+                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => handleOwnerSelect(owner)}
+                  >
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{owner.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {owner.document_type && owner.document_number
+                            ? `${owner.document_type.toUpperCase()}: ${
+                                owner.document_number
+                              }`
+                            : "Sin documento"}
+                        </p>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {owner.email || owner.phone}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Separador entre búsqueda rápida y búsqueda por documento */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white px-3 text-sm text-gray-500">
+            O buscar por documento
+          </span>
+        </div>
+      </div>
+
+      {/* Búsqueda por documento */}
+      <div className="mb-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm font-medium text-gray-700">
