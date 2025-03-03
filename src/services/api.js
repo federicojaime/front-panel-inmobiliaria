@@ -84,18 +84,18 @@ export const authService = {
 // Servicio de propiedades
 export const propertyService = {
   getAll: () => api.get("/properties").then((res) => res.data),
-  
+
   // Filtrar por estado
-  getByStatus: (status) => 
+  getByStatus: (status) =>
     api.get(`/properties/status/${status}`).then((res) => res.data),
-  
+
   // Obtener propiedades inactivas (vendidas, alquiladas, reservadas)
-  getInactive: () => 
+  getInactive: () =>
     api.get(`/properties/inactive`).then((res) => res.data),
-  
-  getById: (id) => 
+
+  getById: (id) =>
     api.get(`/property/${id}`).then((res) => res.data),
-  
+
   create: async (formData) => {
     try {
       const response = await api.post("/property", formData, {
@@ -107,7 +107,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Usamos POST para update, igual que en create
   update: async (id, formData) => {
     try {
@@ -120,7 +120,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Actualizar estado de una propiedad
   updateStatus: async (id, status) => {
     try {
@@ -131,7 +131,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Marcar una propiedad como vendida
   markAsSold: async (id) => {
     try {
@@ -142,7 +142,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Marcar una propiedad como alquilada
   markAsRented: async (id) => {
     try {
@@ -153,7 +153,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Marcar una propiedad como reservada
   markAsReserved: async (id) => {
     try {
@@ -164,7 +164,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   // Marcar una propiedad como disponible para venta
   markAsForSale: async (id) => {
     try {
@@ -186,7 +186,7 @@ export const propertyService = {
       throw error;
     }
   },
-  
+
   delete: (id) => api.delete(`/property/${id}`).then((res) => res.data),
 };
 
@@ -201,10 +201,34 @@ export const userService = {
 
 // Servicio de propietarios
 export const ownerService = {
+  // Función utilitaria para normalizar IDs (para manejar tanto _id como id)
+  _normalizeOwnerData: (ownerData) => {
+    if (!ownerData) return ownerData;
+    
+    // Si el propietario tiene _id pero no id, copiamos _id a id
+    if (ownerData._id && !ownerData.id) {
+      ownerData.id = ownerData._id;
+    }
+    
+    return ownerData;
+  },
+  
+  // Normalizar respuesta para asegurar consistencia
+  _normalizeResponse: (response) => {
+    if (response && response.data) {
+      if (Array.isArray(response.data)) {
+        response.data = response.data.map(owner => ownerService._normalizeOwnerData(owner));
+      } else {
+        response.data = ownerService._normalizeOwnerData(response.data);
+      }
+    }
+    return response;
+  },
+
   getAll: () =>
     api
       .get("/owners")
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error getting owners:", err);
         throw err;
@@ -213,7 +237,7 @@ export const ownerService = {
   getById: (id) =>
     api
       .get(`/owner/${id}`)
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error getting owner:", err);
         throw err;
@@ -222,7 +246,7 @@ export const ownerService = {
   getByDocument: (documentType, documentNumber) =>
     api
       .get(`/owner/document/${documentType}/${documentNumber}`)
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error getting owner by document:", err);
         throw err;
@@ -232,7 +256,7 @@ export const ownerService = {
   search: (query) =>
     api
       .get(`/owners/search?q=${encodeURIComponent(query)}`)
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error searching owners:", err);
         throw err;
@@ -241,7 +265,30 @@ export const ownerService = {
   create: (data) =>
     api
       .post("/owner", data)
-      .then((res) => res.data)
+      .then((res) => {
+        console.log("Respuesta crear propietario (raw):", res.data);
+        
+        // Asegurarnos de que tenemos una respuesta válida
+        if (!res.data) {
+          console.error("Respuesta vacía al crear propietario");
+          throw new Error("Respuesta vacía al crear propietario");
+        }
+        
+        // Normalizar la respuesta para asegurar consistencia
+        const normalizedResponse = ownerService._normalizeResponse(res.data);
+        
+        // Verificar si el propietario tiene un ID después de normalizar
+        if (normalizedResponse.ok && normalizedResponse.data && 
+            !normalizedResponse.data.id && !normalizedResponse.data._id) {
+          console.error("El propietario creado no tiene ID después de normalizar:", normalizedResponse);
+          // Si la API no devolvió un ID pero el resto de la respuesta parece correcta,
+          // podríamos generar un ID temporal (no recomendado en producción)
+          // normalizedResponse.data.id = "temp_" + Date.now();
+        }
+        
+        console.log("Respuesta crear propietario (normalizada):", normalizedResponse);
+        return normalizedResponse;
+      })
       .catch((err) => {
         console.error("Error creating owner:", err);
         throw err;
@@ -250,7 +297,7 @@ export const ownerService = {
   update: (id, data) =>
     api
       .put(`/owner/${id}`, data)
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error updating owner:", err);
         throw err;
@@ -259,7 +306,7 @@ export const ownerService = {
   delete: (id) =>
     api
       .delete(`/owner/${id}`)
-      .then((res) => res.data)
+      .then((res) => ownerService._normalizeResponse(res.data))
       .catch((err) => {
         console.error("Error deleting owner:", err);
         throw err;

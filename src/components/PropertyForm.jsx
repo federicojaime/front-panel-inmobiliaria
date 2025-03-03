@@ -233,6 +233,18 @@ export function PropertyForm({
       return;
     }
 
+    // SOLUCIÓN CLAVE: Considerar todas las posibles ubicaciones del ID
+    const ownerId = selectedOwner.id || selectedOwner._id || selectedOwner.newId;
+
+    if (!ownerId) {
+      console.error("El propietario seleccionado no tiene ningún tipo de ID:", selectedOwner);
+      toast.error("Error: El propietario no tiene un ID válido. Por favor, seleccione otro propietario.");
+      return;
+    }
+
+    console.log("Enviando formulario con propietario:", selectedOwner);
+    console.log("ID del propietario a enviar:", ownerId);
+
     // Crear formData
     const formData = new FormData();
 
@@ -240,7 +252,12 @@ export function PropertyForm({
     if (data.latitude) formData.append("latitude", data.latitude);
     if (data.longitude) formData.append("longitude", data.longitude);
 
-    formData.append("owner_id", selectedOwner.id);
+    // Convertir ID a string y agregarlo al formulario
+    const ownerIdString = String(ownerId);
+    formData.append("owner_id", ownerIdString);
+
+    // Como plan de respaldo, también enviamos los datos completos del propietario
+    formData.append("owner_data", JSON.stringify(selectedOwner));
     formData.append("title", data.title.trim());
     formData.append("description", data.description.trim());
     formData.append("type", data.type.toLowerCase());
@@ -779,7 +796,7 @@ export function PropertyForm({
                   setValue('longitude', lng);
                 }}
               />
-              
+
             </div>
           </div>
         </div>
@@ -798,9 +815,26 @@ export function PropertyForm({
             <OwnerSection
               initialOwner={selectedOwner}
               onOwnerChange={(owner) => {
-                setSelectedOwner(owner);
+                console.log("Propietario seleccionado en PropertyForm:", owner);
                 if (owner) {
-                  setValue("owner_id", owner.id);
+                  // SOLUCIÓN CLAVE: Considerar todas las posibles ubicaciones del ID
+                  const ownerId = owner.id || owner._id || owner.newId;
+
+                  // Verificar que el ID sea un valor válido (no undefined, null o '')
+                  if (ownerId !== undefined && ownerId !== null && ownerId !== '') {
+                    // Crear una copia normalizada del propietario con un id consistente
+                    const normalizedOwner = {
+                      ...owner,
+                      id: ownerId  // Asegurar que tenga un campo id
+                    };
+
+                    setSelectedOwner(normalizedOwner);
+                    setValue("owner_id", ownerId.toString()); // Convertir a string por si acaso
+                    console.log("ID del propietario asignado:", ownerId);
+                  } else {
+                    console.error("El propietario no tiene ID válido:", owner);
+                    toast.error("Error: El propietario seleccionado no tiene ID válido");
+                  }
                 }
               }}
             />
@@ -898,8 +932,8 @@ export function PropertyForm({
                         type="button"
                         onClick={() => toggleMainImage(index)}
                         className={`self-start px-2 py-1 text-xs rounded-md ${image.is_main
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                           } transition-colors`}
                       >
                         {image.is_main ? "Principal ✓" : "Hacer principal"}

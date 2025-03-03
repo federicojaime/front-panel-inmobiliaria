@@ -238,8 +238,51 @@ export function OwnerSearch({ onOwnerSelect }) {
       const response = await ownerService.create(ownerData);
 
       if (response.ok) {
-        onOwnerSelect(response.data);
+        // Crear un objeto propietario completo con la estructura esperada
+        const completeOwner = {
+          // Datos del formulario
+          document_type: formData.documentType,
+          document_number: formData.documentNumber,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          province: formData.province.trim(),
+          is_company: formData.isCompany,
+
+          // Cualquier dato adicional de la respuesta
+          ...response.data,
+
+          // SOLUCIÓN CLAVE: Usar newId como id si existe
+          id: response.data?.newId
+        };
+
+        // Verificar que tenemos algún tipo de ID
+        if (!completeOwner.id && !completeOwner._id && !completeOwner.newId) {
+          console.error("No se pudo obtener un ID válido del propietario:", response.data);
+          toast.error("Error: No se pudo obtener un ID válido para el propietario.");
+          return;
+        }
+
+        console.log("Propietario completo antes de selección:", completeOwner);
+
+        // Seleccionar el propietario para la propiedad
+        onOwnerSelect(completeOwner);
         toast.success("Propietario creado exitosamente");
+
+        // Limpiar formulario
+        setFormData({
+          documentType: "dni",
+          documentNumber: "",
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          city: "",
+          province: "",
+          isCompany: false,
+        });
       } else {
         toast.error(response.msg || "Error al crear propietario");
       }
@@ -386,8 +429,8 @@ export function OwnerSearch({ onOwnerSelect }) {
                 value={formData.documentNumber}
                 onChange={handleChange}
                 className={`block w-full rounded-lg shadow-sm ${errors.documentNumber
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   }`}
               />
               {errors.documentNumber && (
@@ -461,8 +504,8 @@ export function OwnerSearch({ onOwnerSelect }) {
                 value={formData.name}
                 onChange={handleChange}
                 className={`block w-full rounded-lg shadow-sm ${errors.name
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   }`}
               />
               {errors.name && (
@@ -490,8 +533,8 @@ export function OwnerSearch({ onOwnerSelect }) {
                 value={formData.email}
                 onChange={handleChange}
                 className={`block w-full rounded-lg shadow-sm ${errors.email
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   }`}
               />
               {errors.email && (
@@ -519,8 +562,8 @@ export function OwnerSearch({ onOwnerSelect }) {
                 value={formData.phone}
                 onChange={handleChange}
                 className={`block w-full rounded-lg shadow-sm ${errors.phone
-                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                   }`}
               />
               {errors.phone && (
