@@ -66,7 +66,7 @@ export function OwnerSearch({ onOwnerSelect }) {
   // Función de búsqueda rápida por nombre, email o documento
   const quickSearch = async (query) => {
     if (!query.trim()) return;
-    
+
     setIsSearching(true);
     try {
       const response = await ownerService.search(query);
@@ -238,10 +238,7 @@ export function OwnerSearch({ onOwnerSelect }) {
       const response = await ownerService.create(ownerData);
 
       if (response.ok) {
-        onOwnerSelect({
-          ...response.data,
-          ...ownerData,
-        });
+        onOwnerSelect(response.data);
         toast.success("Propietario creado exitosamente");
       } else {
         toast.error(response.msg || "Error al crear propietario");
@@ -329,9 +326,8 @@ export function OwnerSearch({ onOwnerSelect }) {
                         <p className="font-medium text-gray-900">{owner.name}</p>
                         <p className="text-sm text-gray-500">
                           {owner.document_type && owner.document_number
-                            ? `${owner.document_type.toUpperCase()}: ${
-                                owner.document_number
-                              }`
+                            ? `${owner.document_type.toUpperCase()}: ${owner.document_number
+                            }`
                             : "Sin documento"}
                         </p>
                       </div>
@@ -389,11 +385,10 @@ export function OwnerSearch({ onOwnerSelect }) {
                 name="documentNumber"
                 value={formData.documentNumber}
                 onChange={handleChange}
-                className={`block w-full rounded-lg shadow-sm ${
-                  errors.documentNumber
+                className={`block w-full rounded-lg shadow-sm ${errors.documentNumber
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                }`}
+                  }`}
               />
               {errors.documentNumber && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -465,11 +460,10 @@ export function OwnerSearch({ onOwnerSelect }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className={`block w-full rounded-lg shadow-sm ${
-                  errors.name
+                className={`block w-full rounded-lg shadow-sm ${errors.name
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                }`}
+                  }`}
               />
               {errors.name && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -495,11 +489,10 @@ export function OwnerSearch({ onOwnerSelect }) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`block w-full rounded-lg shadow-sm ${
-                  errors.email
+                className={`block w-full rounded-lg shadow-sm ${errors.email
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                }`}
+                  }`}
               />
               {errors.email && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -525,11 +518,10 @@ export function OwnerSearch({ onOwnerSelect }) {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className={`block w-full rounded-lg shadow-sm ${
-                  errors.phone
+                className={`block w-full rounded-lg shadow-sm ${errors.phone
                     ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                     : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                }`}
+                  }`}
               />
               {errors.phone && (
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
