@@ -10,7 +10,8 @@ export function LocationPicker({ latitude, longitude, onChange }) {
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
   const [currentAddress, setCurrentAddress] = useState('');
-
+  const [mapType, setMapType] = useState('standard'); // 'standard' o 'satellite'
+  
   useEffect(() => {
     // Carga dinámica de Leaflet desde CDN
     const loadLeaflet = async () => {
@@ -48,10 +49,25 @@ export function LocationPicker({ latitude, longitude, onChange }) {
         
         mapInstanceRef.current = window.L.map(mapRef.current).setView([defaultLat, defaultLng], 13);
         
-        // Añadir tile layer de OpenStreetMap
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Crear las capas (layers) para ambos tipos de mapas
+        const standardLayer = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(mapInstanceRef.current);
+        });
+        
+        const satelliteLayer = window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+        
+        // Añadir la capa por defecto según el estado inicial
+        if (mapType === 'satellite') {
+          satelliteLayer.addTo(mapInstanceRef.current);
+        } else {
+          standardLayer.addTo(mapInstanceRef.current);
+        }
+        
+        // Guardar referencia a las capas
+        mapInstanceRef.current.standardLayer = standardLayer;
+        mapInstanceRef.current.satelliteLayer = satelliteLayer;
         
         // Añadir marcador si hay coordenadas
         if (latitude && longitude) {
@@ -107,6 +123,15 @@ export function LocationPicker({ latitude, longitude, onChange }) {
           
           onChange(latFixed, lngFixed);
         });
+      } else {
+        // Cambiar entre capas si ya existe el mapa
+        if (mapType === 'satellite') {
+          mapInstanceRef.current.removeLayer(mapInstanceRef.current.standardLayer);
+          mapInstanceRef.current.satelliteLayer.addTo(mapInstanceRef.current);
+        } else {
+          mapInstanceRef.current.removeLayer(mapInstanceRef.current.satelliteLayer);
+          mapInstanceRef.current.standardLayer.addTo(mapInstanceRef.current);
+        }
       }
       
       // Actualizar la posición del marcador si cambian las coordenadas
@@ -133,7 +158,7 @@ export function LocationPicker({ latitude, longitude, onChange }) {
         markerRef.current = null;
       }
     };
-  }, [latitude, longitude, onChange]);
+  }, [latitude, longitude, onChange, mapType]);
 
   // Función para obtener la dirección a partir de coordenadas
   const updateAddressFromCoordinates = async (lat, lng) => {
@@ -298,11 +323,25 @@ export function LocationPicker({ latitude, longitude, onChange }) {
         )}
       </div>
 
-      <div 
-        ref={mapRef} 
-        style={{ width: '100%', height: '400px', borderRadius: '0.5rem' }} 
-        className="border border-gray-300"
-      />
+      <div className="flex flex-col">
+        {/* Botón de cambio de vista */}
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setMapType(prev => prev === 'standard' ? 'satellite' : 'standard')}
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            {mapType === 'standard' ? 'Cambiar a vista satelital' : 'Cambiar a vista estándar'}
+          </button>
+        </div>
+        
+        {/* Contenedor del mapa */}
+        <div 
+          ref={mapRef} 
+          style={{ width: '100%', height: '400px', borderRadius: '0.5rem' }} 
+          className="border border-gray-300"
+        />
+      </div>
       <p className="text-xs text-gray-500">
         Busca una dirección, haz clic en el mapa para seleccionar la ubicación o arrastra el marcador para ajustarla.
       </p>
