@@ -86,6 +86,7 @@ export function PropertyForm({
       has_paved_street: initialData?.has_paved_street || false,
       address: initialData?.address || "",
       city: initialData?.city || "",
+      area_size: "null",
       province: initialData?.province || "",
       featured: initialData?.featured || false,
       latitude: initialData?.latitude || "",
@@ -121,6 +122,21 @@ export function PropertyForm({
   useEffect(() => {
     const initialDataString = JSON.stringify(initialData);
     if (prevInitialDataRef.current !== initialDataString) {
+      // Si solo tenemos owner_id pero no el objeto owner,
+      // hacer una carga manual del propietario
+      if (initialData?.owner_id && !initialData?.owner) {
+        const loadOwner = async () => {
+          try {
+            const response = await ownerService.getById(initialData.owner_id);
+            if (response.ok && response.data) {
+              setSelectedOwner(response.data);
+            }
+          } catch (error) {
+            console.error("Error al cargar propietario:", error);
+          }
+        };
+        loadOwner();
+      }
       reset({
         title: initialData?.title || "",
         owner_id: initialData?.owner_id || "",
@@ -139,6 +155,7 @@ export function PropertyForm({
         has_sewage: initialData?.has_sewage || false,
         has_paved_street: initialData?.has_paved_street || false,
         address: initialData?.address || "",
+        area_size: "null",
         city: initialData?.city || "",
         province: initialData?.province || "",
         featured: initialData?.featured || false,
@@ -228,6 +245,8 @@ export function PropertyForm({
 
   // Al enviar el formulario se crea un FormData con todos los campos e imágenes
   const onSubmitForm = (data) => {
+
+
     if (!selectedOwner) {
       toast.error("Debe seleccionar un propietario");
       return;
@@ -247,6 +266,7 @@ export function PropertyForm({
 
     // Crear formData
     const formData = new FormData();
+    formData.append("area_size", 1);
 
     // Añadir coordenadas SI existen
     if (data.latitude) formData.append("latitude", data.latitude);
@@ -328,7 +348,7 @@ export function PropertyForm({
         prev.map((img, i) => i === 0 ? { ...img, is_main: true } : img)
       );
     }
-
+    console.log("A ENVIAR:", Object.fromEntries(formData.entries()));
     onSubmit(formData);
   };
 

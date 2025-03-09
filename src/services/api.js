@@ -93,17 +93,26 @@ export const propertyService = {
   getInactive: () =>
     api.get(`/properties/inactive`).then((res) => res.data),
 
-  getById: (id) =>
-    api.get(`/property/${id}`).then((res) => res.data),
-
-  create: async (formData) => {
+  getById: async (id) => {
     try {
-      const response = await api.post("/property", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.get(`/property/${id}`);
+
+      // Si tenemos owner_id pero no owner, cargar el propietario
+      if (response.data.ok && response.data.data &&
+        response.data.data.owner_id && !response.data.data.owner) {
+        try {
+          const ownerResponse = await api.get(`/owner/${response.data.data.owner_id}`);
+          if (ownerResponse.data.ok && ownerResponse.data.data) {
+            response.data.data.owner = ownerResponse.data.data;
+          }
+        } catch (ownerError) {
+          console.error("Error al cargar propietario:", ownerError);
+        }
+      }
+
       return response.data;
     } catch (error) {
-      console.error("Error en create:", error.response?.data);
+      console.error("Error al cargar propiedad:", error);
       throw error;
     }
   },
@@ -204,15 +213,15 @@ export const ownerService = {
   // Función utilitaria para normalizar IDs (para manejar tanto _id como id)
   _normalizeOwnerData: (ownerData) => {
     if (!ownerData) return ownerData;
-    
+
     // Si el propietario tiene _id pero no id, copiamos _id a id
     if (ownerData._id && !ownerData.id) {
       ownerData.id = ownerData._id;
     }
-    
+
     return ownerData;
   },
-  
+
   // Normalizar respuesta para asegurar consistencia
   _normalizeResponse: (response) => {
     if (response && response.data) {
@@ -267,25 +276,25 @@ export const ownerService = {
       .post("/owner", data)
       .then((res) => {
         console.log("Respuesta crear propietario (raw):", res.data);
-        
+
         // Asegurarnos de que tenemos una respuesta válida
         if (!res.data) {
           console.error("Respuesta vacía al crear propietario");
           throw new Error("Respuesta vacía al crear propietario");
         }
-        
+
         // Normalizar la respuesta para asegurar consistencia
         const normalizedResponse = ownerService._normalizeResponse(res.data);
-        
+
         // Verificar si el propietario tiene un ID después de normalizar
-        if (normalizedResponse.ok && normalizedResponse.data && 
-            !normalizedResponse.data.id && !normalizedResponse.data._id) {
+        if (normalizedResponse.ok && normalizedResponse.data &&
+          !normalizedResponse.data.id && !normalizedResponse.data._id) {
           console.error("El propietario creado no tiene ID después de normalizar:", normalizedResponse);
           // Si la API no devolvió un ID pero el resto de la respuesta parece correcta,
           // podríamos generar un ID temporal (no recomendado en producción)
           // normalizedResponse.data.id = "temp_" + Date.now();
         }
-        
+
         console.log("Respuesta crear propietario (normalizada):", normalizedResponse);
         return normalizedResponse;
       })

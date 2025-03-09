@@ -23,14 +23,20 @@ export function PropertyFormPage() {
     queryKey: ['property', id],
     queryFn: async () => {
       const response = await propertyService.getById(id);
-      // Preparar los datos para el formulario
-      if (response.data && response.data.owner) {
-        // El propietario ya viene como un objeto estructurado desde el backend
-        return {
-          ...response.data,
-          owner: response.data.owner
-        };
+
+      // Si solo tenemos owner_id pero no el objeto owner completo, cargar el propietario
+      if (response.data && response.data.owner_id && !response.data.owner) {
+        try {
+          const ownerResponse = await ownerService.getById(response.data.owner_id);
+          if (ownerResponse.ok && ownerResponse.data) {
+            // Añadir el propietario completo a la respuesta
+            response.data.owner = ownerResponse.data;
+          }
+        } catch (error) {
+          console.error("Error al cargar datos del propietario:", error);
+        }
       }
+
       return response.data;
     },
     enabled: !!id,
