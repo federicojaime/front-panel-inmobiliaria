@@ -117,9 +117,56 @@ export const propertyService = {
     }
   },
 
-  // Usamos POST para update, igual que en create
+  // Método create con soporte para type_id
+  create: async (formData) => {
+    try {
+      // Si es FormData y tiene type_id, asegurarse de que sea correcto
+      if (formData instanceof FormData && formData.has('type_id')) {
+        const typeId = formData.get('type_id');
+        
+        // Si type_id es un string de un objeto JSON, parsearlo
+        if (typeof typeId === 'string' && typeId.startsWith('{')) {
+          try {
+            const parsedType = JSON.parse(typeId);
+            if (parsedType.id) {
+              formData.set('type_id', parsedType.id);
+            }
+          } catch (e) {
+            console.error('Error al parsear type_id:', e);
+          }
+        }
+      }
+      
+      const response = await api.post("/property", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error en create:", error.response?.data);
+      throw error;
+    }
+  },
+
+  // Método update con soporte para type_id
   update: async (id, formData) => {
     try {
+      // Si es FormData y tiene type_id, asegurarse de que sea correcto
+      if (formData instanceof FormData && formData.has('type_id')) {
+        const typeId = formData.get('type_id');
+        
+        // Si type_id es un string de un objeto JSON, parsearlo
+        if (typeof typeId === 'string' && typeId.startsWith('{')) {
+          try {
+            const parsedType = JSON.parse(typeId);
+            if (parsedType.id) {
+              formData.set('type_id', parsedType.id);
+            }
+          } catch (e) {
+            console.error('Error al parsear type_id:', e);
+          }
+        }
+      }
+      
       const response = await api.post(`/property/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -320,6 +367,18 @@ export const ownerService = {
         console.error("Error deleting owner:", err);
         throw err;
       }),
+};
+
+// Servicio de tipos de propiedades
+export const propertyTypeService = {
+  getAll: () => api.get("/property-types").then((res) => res.data),
+  getActive: () => api.get("/property-types/active").then((res) => res.data),
+  getById: (id) => api.get(`/property-type/${id}`).then((res) => res.data),
+  create: (data) => api.post("/property-type", data).then((res) => res.data),
+  update: (id, data) => api.put(`/property-type/${id}`, data).then((res) => res.data),
+  delete: (id) => api.delete(`/property-type/${id}`).then((res) => res.data),
+  activate: (id) => api.patch(`/property-type/${id}/activate`).then((res) => res.data),
+  deactivate: (id) => api.patch(`/property-type/${id}/deactivate`).then((res) => res.data)
 };
 
 export default api;

@@ -26,6 +26,7 @@ const navigation = [
   { name: 'Vendidos', href: '/properties/sold', icon: CheckCircleIcon },
   { name: 'Propietarios', href: '/owners', icon: UserGroupIcon },
   { name: 'Usuarios', href: '/users', icon: UserCircleIcon },
+  { name: 'Tipos de Propiedades', href: '/property-types', icon: BuildingOfficeIcon },
 ];
 
 export default function Layout({ children }) {

@@ -12,6 +12,7 @@ import { OwnersPage } from './pages/OwnersPage';
 import { OwnerFormPage } from './pages/OwnerFormPage';
 import { RentedPropertiesPage } from './pages/RentedPropertiesPage';
 import { SoldPropertiesPage } from './pages/SoldPropertiesPage';
+import { PropertyTypesPage } from './pages/PropertyTypesPage';
 
 
 function PrivateRoute({ children }) {
@@ -35,6 +36,16 @@ function AppRoutes() {
           <PrivateRoute>
             <Layout>
               <DashboardPage />
+            </Layout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/property-types"
+        element={
+          <PrivateRoute>
+            <Layout>
+              <PropertyTypesPage />
             </Layout>
           </PrivateRoute>
         }
