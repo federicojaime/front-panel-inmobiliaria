@@ -1,8 +1,7 @@
 // src/pages/PropertiesPage.jsx
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { propertyService } from "../services/api";
+import { propertyService, propertyTypeService } from "../services/api";
 import { toast } from "react-hot-toast";
 import {
   PlusIcon,
@@ -22,18 +21,6 @@ import html2canvas from "html2canvas";
 import ReactDOMServer from "react-dom/server";
 import PropertyPDF from "../components/PropertyPDF";
 
-// Mapeo de tipos permitidos por la BD
-const propertyTypeMap = {
-  casa: "Casa",
-  departamento: "Departamento",
-  terreno: "Terreno",
-  local_comercial: "Local Comercial",
-  oficina: "Oficina",
-  galpon: "Galpón",
-  campo: "Campo",
-  cochera: "Cochera",
-};
-
 // Mapeo de estados
 const statusMap = {
   sale: { name: "En Venta", color: "bg-blue-50 text-blue-700 ring-blue-600/20" },
@@ -51,6 +38,34 @@ export function PropertiesPage() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [statusFilter, setStatusFilter] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Agregar estado para los tipos de propiedades
+  const [propertyTypes, setPropertyTypes] = useState({});
+  const [loadingTypes, setLoadingTypes] = useState(true);
+
+  // Cargar los tipos de propiedades
+  useEffect(() => {
+    const loadPropertyTypes = async () => {
+      try {
+        setLoadingTypes(true);
+        const response = await propertyTypeService.getAll();
+        if (response && response.ok) {
+          // Crear un objeto mapeado donde la clave es el id y el valor es el nombre
+          const typesMap = {};
+          response.data.forEach(type => {
+            typesMap[type.id] = type.name;
+          });
+          setPropertyTypes(typesMap);
+        }
+      } catch (error) {
+        console.error("Error al cargar tipos de propiedades:", error);
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    loadPropertyTypes();
+  }, []);
 
   useEffect(() => {
     loadProperties();
@@ -124,6 +139,25 @@ export function PropertiesPage() {
       console.error("Error:", error);
       toast.error("Error al actualizar el estado de la propiedad");
     }
+  };
+  
+  // Función para obtener el nombre del tipo basado en type_id
+  const getPropertyTypeName = (property) => {
+    // Intentar obtener el nombre del tipo usando type_id
+    if (property.type_id && propertyTypes[property.type_id]) {
+      return propertyTypes[property.type_id];
+    }
+    
+    // Si no está disponible type_id, intentar con type
+    if (property.type) {
+      // Si type es un número, buscar en el mapa
+      if (!isNaN(property.type)) {
+        return propertyTypes[property.type] || property.type;
+      }
+      return property.type;
+    }
+    
+    return "Desconocido";
   };
 
   // Filtro de búsqueda
@@ -229,7 +263,7 @@ export function PropertiesPage() {
     setSearchTerm("");
   };
 
-  if (isLoading) {
+  if (isLoading || loadingTypes) {
     return (
       <div className="flex items-center justify-center min-h-screen -mt-16">
         <div className="flex flex-col items-center gap-4">
@@ -473,7 +507,7 @@ export function PropertiesPage() {
                       </div>
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm text-gray-500 capitalize">
-                      {propertyTypeMap[property.type] || property.type}
+                      {getPropertyTypeName(property)}
                     </td>
                     <td className="w-[120px] px-3 py-4 text-sm">
                       {renderStatusBadge(property.status)}

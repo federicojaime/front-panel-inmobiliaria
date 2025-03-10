@@ -6,18 +6,7 @@ import imageCompression from "browser-image-compression";
 import { toast } from "react-hot-toast";
 import { OwnerSection } from "./OwnerSection";
 import { LocationPicker } from "./LocationPicker";
-
-// Lista de tipos permitidos por la BD
-const PROPERTY_TYPES = [
-  { id: "casa", name: "Casa" },
-  { id: "departamento", name: "Departamento" },
-  { id: "terreno", name: "Terreno" },
-  { id: "local_comercial", name: "Local Comercial" },
-  { id: "oficina", name: "Oficina" },
-  { id: "galpon", name: "Galpón" },
-  { id: "campo", name: "Campo" },
-  { id: "cochera", name: "Cochera" },
-];
+import { propertyTypeService, ownerService } from "../services/api"; // Importar servicios
 
 // Lista de provincias
 const PROVINCES = [
@@ -59,6 +48,11 @@ export function PropertyForm({
   initialData = {},
   isSubmitting = false,
 }) {
+  // Estado para almacenar los tipos de propiedades desde la API
+  const [propertyTypes, setPropertyTypes] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+  const [typesError, setTypesError] = useState(null);
+
   const {
     register,
     handleSubmit,
@@ -71,7 +65,7 @@ export function PropertyForm({
       title: initialData?.title || "",
       owner_id: initialData?.owner_id || "",
       description: initialData?.description || "",
-      type: initialData?.type || "casa",
+      type: initialData?.type || "",
       status: initialData?.status || "sale",
       price_ars: initialData?.price_ars || "",
       price_usd: initialData?.price_usd || "",
@@ -108,6 +102,33 @@ export function PropertyForm({
     mode: "onBlur",
   });
 
+  // Cargar los tipos de propiedades desde la API
+  useEffect(() => {
+    const loadPropertyTypes = async () => {
+      try {
+        setLoadingTypes(true);
+        const response = await propertyTypeService.getActive();
+        if (response && response.ok) {
+          console.log("Tipos de propiedades cargados:", response.data);
+          setPropertyTypes(response.data || []);
+
+          // No seleccionamos automáticamente un tipo si estamos en modo edición
+          // porque usaremos el type_id que ya viene con la propiedad
+        } else {
+          setTypesError("No se pudieron cargar los tipos de propiedades");
+          toast.error("Error al cargar tipos de propiedades");
+        }
+      } catch (error) {
+        console.error("Error al cargar tipos de propiedades:", error);
+        setTypesError("Error al cargar los tipos de propiedades");
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    loadPropertyTypes();
+  }, []);
+
   const [uploadedImages, setUploadedImages] = useState(
     initialData?.images || []
   );
@@ -122,6 +143,8 @@ export function PropertyForm({
   useEffect(() => {
     const initialDataString = JSON.stringify(initialData);
     if (prevInitialDataRef.current !== initialDataString) {
+      console.log("Initial data recibida:", initialData);
+
       // Si solo tenemos owner_id pero no el objeto owner,
       // hacer una carga manual del propietario
       if (initialData?.owner_id && !initialData?.owner) {
@@ -137,11 +160,29 @@ export function PropertyForm({
         };
         loadOwner();
       }
+
+      // Importante: Utilizar type_id en lugar de type si está disponible
+      // Asegurar que sea un número entero para comparar con los ids de property_types
+      let propertyTypeId = null;
+
+      if (initialData?.type_id) {
+        // Si existe type_id, usar ese valor
+        propertyTypeId = parseInt(initialData.type_id, 10);
+        console.log("Usando type_id de initialData:", propertyTypeId);
+      } else if (initialData?.type) {
+        // Si no hay type_id pero sí type, intentar usarlo
+        const typeValue = initialData.type;
+        propertyTypeId = isNaN(parseInt(typeValue, 10)) ? typeValue : parseInt(typeValue, 10);
+        console.log("Usando type de initialData:", propertyTypeId);
+      }
+
+      console.log("Tipo de propiedad a establecer (id):", propertyTypeId);
+
       reset({
         title: initialData?.title || "",
         owner_id: initialData?.owner_id || "",
         description: initialData?.description || "",
-        type: initialData?.type || "casa",
+        type: propertyTypeId, // Usar el type_id para el campo type
         status: initialData?.status || "sale",
         price_ars: initialData?.price_ars || "",
         price_usd: initialData?.price_usd || "",
@@ -175,6 +216,7 @@ export function PropertyForm({
           has_high_ceiling: false,
         },
       });
+
       setUploadedImages(initialData?.images || []);
       setSelectedOwner(initialData?.owner || null);
       prevInitialDataRef.current = initialDataString;
@@ -275,7 +317,8 @@ export function PropertyForm({
     // Convertir ID a string y agregarlo al formulario
     const ownerIdString = String(ownerId);
     formData.append("owner_id", ownerIdString);
-
+    formData.append("type_id", data.type);
+    formData.append("type", data.type); // Mantener compatibilidad
     // Como plan de respaldo, también enviamos los datos completos del propietario
     formData.append("owner_data", JSON.stringify(selectedOwner));
     formData.append("title", data.title.trim());
@@ -435,18 +478,44 @@ export function PropertyForm({
                 Tipo de Propiedad
               </label>
               <div className="mt-1">
-                <select
-                  {...register("type", {
-                    required: "El tipo de propiedad es requerido",
-                  })}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                >
-                  {PROPERTY_TYPES.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                {loadingTypes ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                    <span className="text-sm text-gray-500">Cargando tipos...</span>
+                  </div>
+                ) : typesError ? (
+                  <div className="text-sm text-red-600">
+                    {typesError}
+                  </div>
+                ) : (
+                  <select
+                    {...register("type", {
+                      required: "El tipo de propiedad es requerido",
+                    })}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  >
+                    {propertyTypes.length === 0 ? (
+                      <option value="">No hay tipos disponibles</option>
+                    ) : (
+                      propertyTypes.map((type) => {
+                        // Convertir ambos valores a números para comparación
+                        const typeId = parseInt(type.id, 10);
+                        const currentType = parseInt(watch('type'), 10);
+
+                        console.log(`Comparando type id ${typeId} (${typeof typeId}) con form value ${currentType} (${typeof currentType})`);
+
+                        return (
+                          <option
+                            key={type.id}
+                            value={type.id}
+                          >
+                            {type.name}
+                          </option>
+                        );
+                      })
+                    )}
+                  </select>
+                )}
                 {errors.type && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.type.message}

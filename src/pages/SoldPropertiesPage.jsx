@@ -1,7 +1,7 @@
 // src/pages/SoldPropertiesPage.jsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { propertyService } from "../services/api";
+import { propertyService, propertyTypeService } from "../services/api";
 import { toast } from "react-hot-toast";
 import {
   BuildingOfficeIcon,
@@ -18,25 +18,48 @@ import html2canvas from "html2canvas";
 import ReactDOMServer from "react-dom/server";
 import PropertyPDF from "../components/PropertyPDF";
 
-// Mapeo de tipos permitidos por la BD
-const propertyTypeMap = {
-  casa: "Casa",
-  departamento: "Departamento",
-  terreno: "Terreno",
-  local_comercial: "Local Comercial",
-  oficina: "Oficina",
-  galpon: "Galpón",
-  campo: "Campo",
-  cochera: "Cochera",
-};
-
 export function SoldPropertiesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [properties, setProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [propertyTypes, setPropertyTypes] = useState([]);
+  const [typeFilters, setTypeFilters] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Agregar estado para los tipos de propiedades
+  const [propertyTypes, setPropertyTypes] = useState({});
+  const [loadingTypes, setLoadingTypes] = useState(true);
+  const [typesForFilter, setTypesForFilter] = useState([]);
+
+  // Cargar los tipos de propiedades
+  useEffect(() => {
+    const loadPropertyTypes = async () => {
+      try {
+        setLoadingTypes(true);
+        const response = await propertyTypeService.getAll();
+        if (response && response.ok) {
+          // Crear un objeto mapeado donde la clave es el id y el valor es el nombre
+          const typesMap = {};
+          response.data.forEach(type => {
+            typesMap[type.id] = type.name;
+          });
+          setPropertyTypes(typesMap);
+          
+          // Crear un array para los filtros
+          setTypesForFilter(response.data.map(type => ({
+            id: type.id,
+            name: type.name
+          })));
+        }
+      } catch (error) {
+        console.error("Error al cargar tipos de propiedades:", error);
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    loadPropertyTypes();
+  }, []);
 
   useEffect(() => {
     loadProperties();
@@ -95,13 +118,32 @@ export function SoldPropertiesPage() {
       toast.error("Error al actualizar el estado de la propiedad");
     }
   };
+  
+  // Función para obtener el nombre del tipo basado en type_id
+  const getPropertyTypeName = (property) => {
+    // Intentar obtener el nombre del tipo usando type_id
+    if (property.type_id && propertyTypes[property.type_id]) {
+      return propertyTypes[property.type_id];
+    }
+    
+    // Si no está disponible type_id, intentar con type
+    if (property.type) {
+      // Si type es un número, buscar en el mapa
+      if (!isNaN(property.type)) {
+        return propertyTypes[property.type] || property.type;
+      }
+      return property.type;
+    }
+    
+    return "Desconocido";
+  };
 
   // Filtro de tipo de propiedad
-  const togglePropertyType = (type) => {
-    setPropertyTypes(prev => 
-      prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
+  const togglePropertyType = (typeId) => {
+    setTypeFilters(prev => 
+      prev.includes(typeId)
+        ? prev.filter(t => t !== typeId)
+        : [...prev, typeId]
     );
   };
 
@@ -111,15 +153,17 @@ export function SoldPropertiesPage() {
       property?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       property?.address?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = propertyTypes.length === 0 || 
-      propertyTypes.includes(property.type);
+    // Para filtrar por tipo, ahora usamos type_id
+    const matchesType = typeFilters.length === 0 || 
+      (property.type_id && typeFilters.includes(property.type_id.toString())) ||
+      (property.type && !property.type_id && typeFilters.includes(property.type));
     
     return matchesSearch && matchesType;
   }) || [];
 
   // Limpiar todos los filtros
   const clearFilters = () => {
-    setPropertyTypes([]);
+    setTypeFilters([]);
     setSearchTerm("");
   };
 
@@ -183,7 +227,7 @@ export function SoldPropertiesPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || loadingTypes) {
     return (
       <div className="flex items-center justify-center min-h-screen -mt-16">
         <div className="flex flex-col items-center gap-4">
@@ -242,14 +286,14 @@ export function SoldPropertiesPage() {
           >
             <FunnelIcon className="h-4 w-4" />
             Filtros
-            {propertyTypes.length > 0 && (
+            {typeFilters.length > 0 && (
               <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                {propertyTypes.length}
+                {typeFilters.length}
               </span>
             )}
           </button>
           
-          {(propertyTypes.length > 0 || searchTerm) && (
+          {(typeFilters.length > 0 || searchTerm) && (
             <button
               onClick={clearFilters}
               className="ml-2 flex items-center gap-x-2 px-3 py-1.5 text-sm font-medium rounded-md bg-white border border-gray-300 hover:bg-gray-50 text-gray-700"
@@ -267,17 +311,17 @@ export function SoldPropertiesPage() {
           <div className="mb-3">
             <h3 className="text-sm font-medium text-gray-700">Filtrar por tipo de propiedad</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {Object.entries(propertyTypeMap).map(([key, name]) => (
+              {typesForFilter.map((type) => (
                 <button
-                  key={key}
-                  onClick={() => togglePropertyType(key)}
+                  key={type.id}
+                  onClick={() => togglePropertyType(type.id)}
                   className={`px-3 py-1 text-xs font-medium rounded-md ${
-                    propertyTypes.includes(key)
+                    typeFilters.includes(type.id)
                       ? "bg-gray-800 text-white"
                       : "bg-white border border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  {name}
+                  {type.name}
                 </button>
               ))}
             </div>
@@ -356,7 +400,7 @@ export function SoldPropertiesPage() {
                       </div>
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500 capitalize">
-                      {propertyTypeMap[property.type] || property.type}
+                      {getPropertyTypeName(property)}
                     </td>
                     <td className="w-[150px] px-3 py-4 text-sm text-gray-500">
                       {property.price_usd
@@ -416,7 +460,7 @@ export function SoldPropertiesPage() {
                       No hay propiedades vendidas
                     </h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm || propertyTypes.length > 0
+                      {searchTerm || typeFilters.length > 0
                         ? "No se encontraron propiedades que coincidan con tu búsqueda."
                         : "No hay propiedades vendidas actualmente."}
                     </p>
