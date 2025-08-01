@@ -38,7 +38,7 @@ const PROVINCES = [
 const PROPERTY_STATUS = [
   { id: "sale", name: "En Venta" },
   { id: "rent", name: "En Alquiler" },
-  { id: "temporary_rent", name: "Alquiler Temporal" },
+  //{ id: "temporary_rent", name: "Alquiler Temporal" },
   { id: "rented", name: "Alquilado" },
   { id: "sold", name: "Vendido" },
   { id: "venta_en_pozo", name: "Venta en Pozo" },
