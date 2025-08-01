@@ -8,7 +8,7 @@ import backgroundImage from '../assets/background.jpg';
 import logoImage from '../assets/logo.png';
 
 export function LoginPage() {
-    const [credentials, setCredentials] = useState({ email: 'patricia@karttemsa.com', password: 'administrador2025' });
+    const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
