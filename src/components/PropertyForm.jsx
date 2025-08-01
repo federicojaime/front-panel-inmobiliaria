@@ -34,12 +34,14 @@ const PROVINCES = [
   { id: "tucuman", name: "Tucumán" },
 ];
 
-// Lista de estados
+// Lista de estados - ACTUALIZADA CON LOS NUEVOS ESTADOS
 const PROPERTY_STATUS = [
   { id: "sale", name: "En Venta" },
   { id: "rent", name: "En Alquiler" },
+  { id: "temporary_rent", name: "Alquiler Temporal" },
   { id: "rented", name: "Alquilado" },
   { id: "sold", name: "Vendido" },
+  { id: "venta_en_pozo", name: "Venta en Pozo" },
   { id: "reserved", name: "Reservado" },
 ];
 
@@ -287,8 +289,6 @@ export function PropertyForm({
 
   // Al enviar el formulario se crea un FormData con todos los campos e imágenes
   const onSubmitForm = (data) => {
-
-
     if (!selectedOwner) {
       toast.error("Debe seleccionar un propietario");
       return;
@@ -323,7 +323,7 @@ export function PropertyForm({
     formData.append("owner_data", JSON.stringify(selectedOwner));
     formData.append("title", data.title.trim());
     formData.append("description", data.description.trim());
-    formData.append("type", data.type.toLowerCase());
+    formData.append("type", data.type ? data.type.toString() : ""); // CORREGIDO: No usar toLowerCase()
     formData.append("status", data.status);
     formData.append("covered_area", Number(data.covered_area) || 0);
     formData.append("total_area", Number(data.total_area) || 0);
@@ -494,6 +494,7 @@ export function PropertyForm({
                     })}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   >
+                    <option value="">Seleccione un tipo</option>
                     {propertyTypes.length === 0 ? (
                       <option value="">No hay tipos disponibles</option>
                     ) : (
@@ -599,7 +600,7 @@ export function PropertyForm({
               </div>
             </div>
 
-            {/* Superficies */}
+            {/* Superficies - SIN VALIDACIONES */}
             <div className="sm:col-span-3">
               <label
                 htmlFor="covered_area"
@@ -611,20 +612,9 @@ export function PropertyForm({
                 <input
                   type="number"
                   step="0.01"
-                  {...register("covered_area", {
-                    required: "La superficie cubierta es requerida",
-                    min: {
-                      value: 1,
-                      message: "La superficie cubierta debe ser mayor a 0",
-                    },
-                  })}
+                  {...register("covered_area")}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
-                {errors.covered_area && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.covered_area.message}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -639,21 +629,9 @@ export function PropertyForm({
                 <input
                   type="number"
                   step="0.01"
-                  {...register("total_area", {
-                    required: "La superficie del terreno es requerida",
-                    min: {
-                      value: 1,
-                      message:
-                        "La superficie del terreno debe ser mayor a 0",
-                    },
-                  })}
+                  {...register("total_area")}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 />
-                {errors.total_area && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.total_area.message}
-                  </p>
-                )}
               </div>
             </div>
 
